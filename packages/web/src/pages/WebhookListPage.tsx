@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Webhook, Plus, Trash2, Edit, X, Loader2, Send, Check, AlertCircle } from 'lucide-react';
 import { useWebhooks, useCreateWebhook, useUpdateWebhook, useDeleteWebhook, useTestWebhook } from '@/hooks/useWebhooks';
 import toast from 'react-hot-toast';
@@ -15,15 +15,24 @@ function WebhookModal({
   onClose: () => void;
   webhook?: WebhookType;
 }) {
-  const [name, setName] = useState(webhook?.name || '');
-  const [url, setUrl] = useState(webhook?.url || '');
-  const [isDefault, setIsDefault] = useState(webhook?.isDefault || false);
+  const [name, setName] = useState('');
+  const [url, setUrl] = useState('');
+  const [isDefault, setIsDefault] = useState(false);
 
   const createWebhook = useCreateWebhook();
   const updateWebhook = useUpdateWebhook();
 
   const isLoading = createWebhook.isPending || updateWebhook.isPending;
   const isEditing = !!webhook;
+
+  // Sync state when webhook prop changes or modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setName(webhook?.name || '');
+      setUrl(webhook?.url || '');
+      setIsDefault(webhook?.isDefault || false);
+    }
+  }, [isOpen, webhook]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

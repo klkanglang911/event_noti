@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FolderOpen, Plus, Trash2, Edit, X, Loader2 } from 'lucide-react';
 import { useGroups, useCreateGroup, useUpdateGroup, useDeleteGroup } from '@/hooks/useGroups';
+import { useWebhooks } from '@/hooks/useWebhooks';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '@/services/api';
 import type { Group } from '@event-noti/shared';
@@ -30,15 +31,24 @@ function GroupModal({
   group?: Group;
   webhooks: { id: number; name: string }[];
 }) {
-  const [name, setName] = useState(group?.name || '');
-  const [color, setColor] = useState(group?.color || COLORS[0]);
-  const [webhookId, setWebhookId] = useState<number | ''>(group?.webhookId || '');
+  const [name, setName] = useState('');
+  const [color, setColor] = useState(COLORS[0]);
+  const [webhookId, setWebhookId] = useState<number | ''>('');
 
   const createGroup = useCreateGroup();
   const updateGroup = useUpdateGroup();
 
   const isLoading = createGroup.isPending || updateGroup.isPending;
   const isEditing = !!group;
+
+  // Sync state when group prop changes or modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setName(group?.name || '');
+      setColor(group?.color || COLORS[0]);
+      setWebhookId(group?.webhookId || '');
+    }
+  }, [isOpen, group]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,10 +179,11 @@ export default function GroupListPage() {
   const [editingGroup, setEditingGroup] = useState<Group | undefined>();
 
   const { data: groups, isLoading } = useGroups();
+  const { data: webhooks } = useWebhooks();
   const deleteGroup = useDeleteGroup();
 
-  // Mock webhooks for now - in real app, fetch from API
-  const webhooks: { id: number; name: string }[] = [];
+  // Transform webhooks to simple format for modal
+  const webhookOptions = webhooks?.map(w => ({ id: w.id, name: w.name })) || [];
 
   const handleEdit = (group: Group) => {
     setEditingGroup(group);
@@ -289,7 +300,7 @@ export default function GroupListPage() {
         isOpen={modalOpen}
         onClose={handleClose}
         group={editingGroup}
-        webhooks={webhooks}
+        webhooks={webhookOptions}
       />
     </div>
   );
