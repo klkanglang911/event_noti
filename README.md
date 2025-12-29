@@ -4,11 +4,36 @@
 
 ## 功能特性
 
+### 核心功能
 - **事件管理**: 创建、编辑、删除事件，支持分组管理
-- **智能提醒**: 支持设置提前 1-30 天开始提醒，每天发送直到目标日期
+- **智能通知规则**: 根据距离目标日期的时间自动调整通知频率
 - **企业微信集成**: 通过 Webhook 发送通知到企业微信群
+- **Markdown 支持**: 事件描述支持 Markdown 格式
+
+### 智能通知规则
+系统根据剩余天数智能安排通知频率：
+| 剩余时间 | 通知频率 |
+|---------|---------|
+| 创建时 | 立即发送确认通知 |
+| > 30 天 | 每 30 天通知一次 |
+| 8-30 天 | 每 7 天通知一次 |
+| 4-7 天 | 每 3 天通知一次 |
+| ≤ 3 天 | 每天通知一次 |
+| 到期当天 | 发送最终提醒 |
+
+### 用户与权限
 - **多用户支持**: 管理员可创建和管理用户账户
-- **通知历史**: 查看通知发送记录和状态
+- **角色权限**: 管理员 (admin) 和普通用户 (user)
+- **分组权限**: 仅管理员可创建/管理分组，并将分组分配给用户
+
+### 通知管理
+- **通知历史**: 查看所有通知发送记录和状态
+- **删除/取消**: 可删除历史记录或取消待发送的通知
+- **失败重试**: 支持手动重试失败的通知
+- **自动重试**: 失败通知自动重试最多 3 次
+
+### 系统设置
+- **时区设置**: 支持自定义时区（默认 Asia/Shanghai）
 - **响应式设计**: 支持桌面和移动端访问
 
 ## 技术栈
@@ -29,6 +54,7 @@
 - node-cron (定时任务)
 - JWT (身份认证)
 - Zod (数据验证)
+- bcrypt (密码加密)
 
 ## 快速开始
 
@@ -36,8 +62,8 @@
 
 1. 克隆项目
 ```bash
-git clone <repository-url>
-cd event-noti
+git clone https://github.com/klkanglang911/event_noti.git
+cd event_noti
 ```
 
 2. 创建环境配置
@@ -48,7 +74,7 @@ cp .env.example .env
 
 3. 启动服务
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 4. 访问应用
@@ -90,7 +116,7 @@ pnpm build
 |------|------|--------|
 | `NODE_ENV` | 运行环境 | `development` |
 | `PORT` | 服务端口 | `3000` |
-| `DATABASE_PATH` | 数据库文件路径 | `./data/event_noti.db` |
+| `DATABASE_PATH` | 数据库文件路径 | `./data/event-noti.db` |
 | `JWT_SECRET` | JWT 签名密钥 | (必须设置) |
 | `JWT_EXPIRES_IN` | JWT 过期时间 | `7d` |
 | `FRONTEND_URL` | 前端 URL (开发环境 CORS) | `http://localhost:5173` |
@@ -98,7 +124,7 @@ pnpm build
 ## 项目结构
 
 ```
-event-noti/
+event_noti/
 ├── packages/
 │   ├── web/              # 前端 React 应用
 │   │   ├── src/
@@ -112,7 +138,7 @@ event-noti/
 │   ├── server/           # 后端 Express 应用
 │   │   ├── src/
 │   │   │   ├── controllers/ # 控制器
-│   │   │   ├── db/          # 数据库配置
+│   │   │   ├── db/          # 数据库配置和迁移
 │   │   │   ├── middlewares/ # 中间件
 │   │   │   ├── models/      # 数据模型
 │   │   │   ├── routes/      # API 路由
@@ -145,7 +171,7 @@ event-noti/
 | `/api/events/:id` | PUT | 更新事件 |
 | `/api/events/:id` | DELETE | 删除事件 |
 
-### 分组
+### 分组 (管理员)
 
 | 端点 | 方法 | 描述 |
 |------|------|------|
@@ -153,6 +179,8 @@ event-noti/
 | `/api/groups` | POST | 创建分组 |
 | `/api/groups/:id` | PUT | 更新分组 |
 | `/api/groups/:id` | DELETE | 删除分组 |
+| `/api/groups/:id/users` | GET | 获取分组已分配用户 |
+| `/api/groups/:id/users` | PUT | 更新分组用户分配 |
 
 ### Webhook (管理员)
 
@@ -170,8 +198,8 @@ event-noti/
 |------|------|------|
 | `/api/users` | GET | 获取用户列表 |
 | `/api/users` | POST | 创建用户 |
-| `/api/users/:id` | PUT | 更新用户 |
-| `/api/users/:id` | DELETE | 删除用户 |
+| `/api/users/:id` | PUT | 更新用户 (含密码) |
+| `/api/users/:id` | DELETE | 禁用用户 |
 
 ### 通知
 
@@ -179,13 +207,25 @@ event-noti/
 |------|------|------|
 | `/api/notifications` | GET | 获取通知历史 |
 | `/api/notifications/stats` | GET | 获取通知统计 |
+| `/api/notifications/:id` | DELETE | 删除/取消通知 |
 | `/api/notifications/:id/retry` | POST | 重试失败通知 |
+
+### 系统设置 (管理员)
+
+| 端点 | 方法 | 描述 |
+|------|------|------|
+| `/api/settings/timezone` | GET | 获取时区设置 |
+| `/api/settings/timezone` | PUT | 更新时区设置 |
 
 ## 定时任务
 
-- **通知发送**: 每天 09:00 检查并发送当日通知
-- **事件过期**: 每天 10:00 标记过期事件
-- **失败重试**: 失败的通知会自动重试最多 3 次
+系统使用 node-cron 执行以下定时任务：
+
+| 任务 | 执行时间 | 描述 |
+|------|---------|------|
+| 通知发送 | 每分钟检查 | 发送当前时间点的待发通知 |
+| 事件过期 | 每天 00:01 | 标记过期事件 |
+| 失败重试 | 每 30 分钟 | 重试失败的通知 (最多 3 次) |
 
 ## 开发命令
 
@@ -202,10 +242,32 @@ pnpm build
 # 代码检查
 pnpm lint
 pnpm lint:fix
-
-# 格式化代码
-pnpm format
 ```
+
+## 数据库
+
+使用 SQLite 数据库，主要表结构：
+
+- `users` - 用户表
+- `events` - 事件表
+- `groups` - 分组表
+- `user_groups` - 用户-分组关联表
+- `webhooks` - Webhook 配置表
+- `notifications` - 通知记录表
+- `settings` - 系统设置表
+
+## 更新日志
+
+### v1.0.0 (2024-12-29)
+- 事件管理 (CRUD)
+- 智能通知规则
+- 企业微信 Webhook 集成
+- 多用户支持 (管理员/普通用户)
+- 分组权限管理
+- Markdown 消息格式
+- 通知历史管理 (查看/删除/取消/重试)
+- 时区设置
+- Docker 部署支持
 
 ## 许可证
 
