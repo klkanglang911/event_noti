@@ -1,0 +1,16 @@
+{
+  "id": "snapshot_1766898295413_mtxr1igmb",
+  "approvalId": "approval_1766898295403_vx5o4ve15",
+  "approvalTitle": "产品文档 - EventNoti 通知管理平台",
+  "version": 1,
+  "timestamp": "2025-12-28T05:04:55.413Z",
+  "trigger": "initial",
+  "status": "pending",
+  "content": "# Product Overview\n\n## Product Purpose\n\n**EventNoti** 是一个事件通知管理平台，帮助用户设置和管理重要事项的提醒通知。通过企业微信机器人 Webhook 实现消息推送，支持倒计时提醒模式，确保用户不会错过任何重要日期或事件。\n\n**核心问题**：\n- 重要事项（合同到期、证件续期、纪念日等）容易遗忘\n- 缺乏统一的事件提醒管理工具\n- 需要提前多日倒计时提醒而非单次提醒\n\n## Target Users\n\n### 主要用户\n- **企业管理人员**：管理合同、证照、资质到期提醒\n- **团队负责人**：管理团队重要事项和截止日期\n- **个人用户**：管理个人重要日期提醒\n\n### 用户痛点\n- 日历提醒功能单一，无法设置多日倒计时\n- 企业微信群内无法集中管理提醒事项\n- 多人协作场景下提醒无法共享\n\n## Key Features\n\n1. **通知事件管理**：创建、编辑、删除通知事件，设置名称、内容、目标日期\n2. **智能倒计时提醒**：支持「到期前 N 天开始，每日提醒」模式\n3. **通知分组管理**：按标签/分类组织通知事项（如：合同、证照、个人）\n4. **多 Webhook 支持**：不同分组可绑定不同的企业微信机器人\n5. **通知历史记录**：查看已发送通知的完整记录\n6. **多用户协作**：管理员创建用户，共享通知管理\n\n## Business Objectives\n\n- 提供简洁高效的事件提醒解决方案\n- 降低因遗忘重要事项造成的损失\n- 支持企业微信生态集成\n- 实现轻量化 Docker 一键部署\n\n## Success Metrics\n\n- **可用性**：系统稳定运行，通知准时送达\n- **用户体验**：3 步内完成通知创建\n- **部署便捷**：Docker 单容器 5 分钟完成部署\n\n## Product Principles\n\n1. **简洁至上**：界面清晰，操作直观，无多余功能\n2. **准时可靠**：通知必须准时送达，不丢失不重复\n3. **响应式设计**：PC 和移动端均可流畅使用\n4. **轻量部署**：单容器部署，低资源占用\n\n## Monitoring & Visibility\n\n- **Dashboard Type**: Web-based 响应式界面（Tauri 可选桌面端）\n- **Real-time Updates**: 通知状态实时更新\n- **Key Metrics Displayed**: 待发送通知数、今日通知、近期到期事项\n- **Sharing Capabilities**: 通知历史导出\n\n## Future Vision\n\n### Potential Enhancements\n- **更多通知渠道**：支持钉钉、飞书、Telegram 等\n- **周期性事件**：支持每年/每月重复的周期事件\n- **API 接口**：提供 REST API 供第三方集成\n- **移动 App**：原生移动端应用\n",
+  "fileStats": {
+    "size": 2595,
+    "lines": 67,
+    "lastModified": "2025-12-28T05:04:42.117Z"
+  },
+  "comments": []
+}

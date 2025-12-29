@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__spec-workflow__spec-workflow-guide",
+      "mcp__spec-workflow__steering-guide",
+      "mcp__spec-workflow__approvals",
+      "Bash(pnpm install)",
+      "Bash(where pnpm)",
+      "Bash(where npm:*)",
+      "Bash(npm install:*)",
+      "Bash(pnpm --filter shared build:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm --filter web add:*)",
+      "Bash(pnpm --filter server add:*)",
+      "Bash(timeout:*)",
+      "Bash(curl:*)",
+      "Bash(ping:*)",
+      "Bash(set TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsImRpc3BsYXlOYW1lIjoi566h55CG5ZGYIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzY2OTAxNzUwLCJleHAiOjE3Njc1MDY1NTB9.wyk1lh7yM6jyUhuM1WaOZ_NbTLLDVp1NwcUJKSJJS2A)",
+      "Bash(dir /b D:WORKAI_WORKevent_notipackageswebsrc)",
+      "Bash(dir /b \"D:\\\\WORK\\\\AI_WORK\\\\event_noti\")",
+      "Bash(git init:*)",
+      "Bash(git remote:*)"
+    ]
+  }
+}

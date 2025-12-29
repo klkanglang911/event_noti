@@ -1,0 +1,14 @@
+{
+  "filePath": ".spec-workflow/steering/product.md",
+  "currentVersion": 1,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2025-12-28T05:04:55.413Z",
+      "trigger": "initial",
+      "approvalId": "approval_1766898295403_vx5o4ve15",
+      "approvalTitle": "产品文档 - EventNoti 通知管理平台"
+    }
+  ]
+}
