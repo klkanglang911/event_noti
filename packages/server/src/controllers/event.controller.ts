@@ -6,19 +6,21 @@ import { ERROR_CODES, DEFAULTS } from '@event-noti/shared';
 // Validation schemas
 const createEventSchema = z.object({
   title: z.string().min(1, '标题不能为空').max(100),
-  content: z.string().max(500).optional(),
+  content: z.string().max(2000).optional(),
   targetDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式无效'),
   targetTime: z.string().regex(/^\d{2}:\d{2}$/, '时间格式无效').default('09:00'),
   remindDays: z.number().int().min(0).max(365).default(DEFAULTS.REMIND_DAYS),
+  messageFormat: z.enum(['text', 'markdown']).default('text'),
   groupId: z.number().int().positive().optional(),
 });
 
 const updateEventSchema = z.object({
   title: z.string().min(1).max(100).optional(),
-  content: z.string().max(500).optional().nullable(),
+  content: z.string().max(2000).optional().nullable(),
   targetDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   targetTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   remindDays: z.number().int().min(0).max(365).optional(),
+  messageFormat: z.enum(['text', 'markdown']).optional(),
   groupId: z.number().int().positive().optional().nullable(),
   status: z.enum(['active', 'expired', 'completed']).optional(),
 });

@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Loader2, Save } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, Bold, Italic, List, ListOrdered, Quote, Code, Link, Eye, EyeOff } from 'lucide-react';
 import { useEvent, useCreateEvent, useUpdateEvent } from '@/hooks/useEvents';
 import { useGroups } from '@/hooks/useGroups';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '@/services/api';
+import type { MessageFormat } from '@event-noti/shared';
 
 export default function EventFormPage() {
   const { id } = useParams();
@@ -22,6 +23,9 @@ export default function EventFormPage() {
   const [targetTime, setTargetTime] = useState('09:00');
   const [remindDays, setRemindDays] = useState(7);
   const [groupId, setGroupId] = useState<number | ''>('');
+  const [messageFormat, setMessageFormat] = useState<MessageFormat>('text');
+  const [showPreview, setShowPreview] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Populate form when editing
   useEffect(() => {
@@ -32,8 +36,55 @@ export default function EventFormPage() {
       setTargetTime(event.targetTime || '09:00');
       setRemindDays(event.remindDays);
       setGroupId(event.groupId || '');
+      setMessageFormat(event.messageFormat || 'text');
     }
   }, [event]);
+
+  // Markdown toolbar helpers
+  const insertMarkdown = (before: string, after: string = '') => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = content.substring(start, end);
+    const newText = content.substring(0, start) + before + selectedText + after + content.substring(end);
+
+    setContent(newText);
+
+    // Restore cursor position
+    setTimeout(() => {
+      textarea.focus();
+      const newCursorPos = start + before.length + selectedText.length + after.length;
+      textarea.setSelectionRange(
+        selectedText ? newCursorPos : start + before.length,
+        selectedText ? newCursorPos : start + before.length
+      );
+    }, 0);
+  };
+
+  const markdownActions = [
+    { icon: Bold, title: '加粗', action: () => insertMarkdown('**', '**') },
+    { icon: Italic, title: '斜体', action: () => insertMarkdown('*', '*') },
+    { icon: Code, title: '代码', action: () => insertMarkdown('`', '`') },
+    { icon: Link, title: '链接', action: () => insertMarkdown('[', '](url)') },
+    { icon: Quote, title: '引用', action: () => insertMarkdown('> ') },
+    { icon: List, title: '无序列表', action: () => insertMarkdown('- ') },
+    { icon: ListOrdered, title: '有序列表', action: () => insertMarkdown('1. ') },
+  ];
+
+  // Simple markdown to HTML converter for preview
+  const renderMarkdownPreview = (text: string) => {
+    return text
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`(.+?)`/g, '<code class="bg-gray-100 px-1 rounded">$1</code>')
+      .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" class="text-primary-600 underline">$1</a>')
+      .replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-gray-300 pl-3 text-gray-600">$1</blockquote>')
+      .replace(/^- (.+)$/gm, '<li class="ml-4">$1</li>')
+      .replace(/^(\d+)\. (.+)$/gm, '<li class="ml-4">$2</li>')
+      .replace(/\n/g, '<br />');
+  };
 
   const isLoading = createEvent.isPending || updateEvent.isPending;
 
@@ -56,6 +107,7 @@ export default function EventFormPage() {
       targetDate,
       targetTime,
       remindDays,
+      messageFormat,
       groupId: groupId || undefined,
     };
 
@@ -115,20 +167,100 @@ export default function EventFormPage() {
           />
         </div>
 
-        {/* Content */}
+        {/* Content with Message Format */}
         <div>
-          <label htmlFor="content" className="label">
-            事件描述
-          </label>
-          <textarea
-            id="content"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="input min-h-[100px] resize-y"
-            placeholder="补充事件详细信息（可选）"
-            disabled={isLoading}
-            maxLength={500}
-          />
+          <div className="flex items-center justify-between mb-2">
+            <label htmlFor="content" className="label mb-0">
+              事件描述
+            </label>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="messageFormat"
+                  value="text"
+                  checked={messageFormat === 'text'}
+                  onChange={() => setMessageFormat('text')}
+                  className="w-4 h-4 text-primary-600"
+                  disabled={isLoading}
+                />
+                <span className="text-sm text-gray-600">纯文本</span>
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="messageFormat"
+                  value="markdown"
+                  checked={messageFormat === 'markdown'}
+                  onChange={() => setMessageFormat('markdown')}
+                  className="w-4 h-4 text-primary-600"
+                  disabled={isLoading}
+                />
+                <span className="text-sm text-gray-600">Markdown</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Markdown Toolbar */}
+          {messageFormat === 'markdown' && (
+            <div className="flex items-center gap-1 mb-2 p-2 bg-gray-50 rounded-t-lg border border-b-0 border-gray-200">
+              {markdownActions.map(({ icon: Icon, title, action }) => (
+                <button
+                  key={title}
+                  type="button"
+                  onClick={action}
+                  className="p-1.5 hover:bg-gray-200 rounded text-gray-600 hover:text-gray-900 transition-colors"
+                  title={title}
+                  disabled={isLoading}
+                >
+                  <Icon className="w-4 h-4" />
+                </button>
+              ))}
+              <div className="flex-1" />
+              <button
+                type="button"
+                onClick={() => setShowPreview(!showPreview)}
+                className={`p-1.5 rounded transition-colors ${
+                  showPreview ? 'bg-primary-100 text-primary-600' : 'hover:bg-gray-200 text-gray-600 hover:text-gray-900'
+                }`}
+                title={showPreview ? '编辑' : '预览'}
+                disabled={isLoading}
+              >
+                {showPreview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          )}
+
+          {/* Editor / Preview */}
+          {messageFormat === 'markdown' && showPreview ? (
+            <div
+              className="input min-h-[150px] prose prose-sm max-w-none overflow-auto"
+              dangerouslySetInnerHTML={{ __html: renderMarkdownPreview(content) || '<span class="text-gray-400">预览区域</span>' }}
+            />
+          ) : (
+            <textarea
+              ref={textareaRef}
+              id="content"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              className={`input min-h-[100px] resize-y ${
+                messageFormat === 'markdown' ? 'rounded-t-none border-t-0 min-h-[150px] font-mono text-sm' : ''
+              }`}
+              placeholder={
+                messageFormat === 'markdown'
+                  ? '支持 Markdown 格式，如 **加粗**、*斜体*、`代码`、[链接](url) 等'
+                  : '补充事件详细信息（可选）'
+              }
+              disabled={isLoading}
+              maxLength={2000}
+            />
+          )}
+
+          {messageFormat === 'markdown' && (
+            <p className="text-xs text-gray-500 mt-1">
+              支持基础 Markdown 语法：**加粗** *斜体* `代码` [链接](url) {'>'} 引用 - 列表
+            </p>
+          )}
         </div>
 
         {/* Target Date */}

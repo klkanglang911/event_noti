@@ -58,14 +58,15 @@ async function sendNotification(notificationId: number): Promise<boolean> {
   const targetDate = new Date(event.targetDate);
   const daysRemaining = Math.ceil((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-  // Send notification
-  console.log(`[Scheduler] Sending notification ${notificationId} for event "${event.title}"`);
+  // Send notification with message format
+  console.log(`[Scheduler] Sending notification ${notificationId} for event "${event.title}" (format: ${event.messageFormat})`);
 
   const result = await webhookService.sendNotification(
     webhookUrl,
     event.title,
     event.content || '',
-    daysRemaining
+    daysRemaining,
+    event.messageFormat || 'text'
   );
 
   if (result.success) {

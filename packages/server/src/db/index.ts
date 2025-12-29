@@ -54,6 +54,12 @@ function runMigrations(): void {
     db.exec("ALTER TABLE notifications ADD COLUMN scheduled_time TEXT DEFAULT '09:00'");
     console.log('✅ Migration: Added scheduled_time column to notifications');
   }
+
+  // Migration 3: Add message_format column to events table
+  if (!eventsInfo.some((col) => col.name === 'message_format')) {
+    db.exec("ALTER TABLE events ADD COLUMN message_format TEXT DEFAULT 'text'");
+    console.log('✅ Migration: Added message_format column to events');
+  }
 }
 
 // Seed default admin user

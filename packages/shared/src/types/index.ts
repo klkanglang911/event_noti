@@ -23,6 +23,8 @@ export interface UpdateUserInput {
 }
 
 // Event types
+export type MessageFormat = 'text' | 'markdown';
+
 export interface Event {
   id: number;
   title: string;
@@ -30,6 +32,7 @@ export interface Event {
   targetDate: string; // YYYY-MM-DD
   targetTime: string; // HH:MM
   remindDays: number;
+  messageFormat: MessageFormat;
   groupId: number | null;
   userId: number;
   status: 'active' | 'expired' | 'completed';
@@ -46,6 +49,7 @@ export interface CreateEventInput {
   targetDate: string;
   targetTime?: string; // HH:MM, defaults to 09:00
   remindDays: number;
+  messageFormat?: MessageFormat; // defaults to 'text'
   groupId?: number;
 }
 
@@ -55,6 +59,7 @@ export interface UpdateEventInput {
   targetDate?: string;
   targetTime?: string;
   remindDays?: number;
+  messageFormat?: MessageFormat;
   groupId?: number | null;
   status?: 'active' | 'expired' | 'completed';
 }

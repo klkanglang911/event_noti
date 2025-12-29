@@ -94,22 +94,38 @@ export async function sendNotification(
   webhookUrl: string,
   title: string,
   content: string,
-  daysRemaining: number
+  daysRemaining: number,
+  messageFormat: 'text' | 'markdown' = 'text'
 ): Promise<{ success: boolean; error?: string }> {
   const urgency = daysRemaining <= 3 ? '🔴' : daysRemaining <= 7 ? '🟡' : '🟢';
   const dayText =
     daysRemaining === 0
-      ? '**今天**'
+      ? '今天'
       : daysRemaining < 0
-        ? `**已过期 ${Math.abs(daysRemaining)} 天**`
-        : `**还有 ${daysRemaining} 天**`;
+        ? `已过期 ${Math.abs(daysRemaining)} 天`
+        : `还有 ${daysRemaining} 天`;
 
-  const message = {
-    msgtype: 'markdown',
-    markdown: {
-      content: `${urgency} **${title}**\n\n> ${dayText}\n\n${content || ''}`,
-    },
-  };
+  let message: Record<string, unknown>;
+
+  if (messageFormat === 'markdown') {
+    // Markdown format - render content as-is
+    const markdownContent = `${urgency} **${title}**\n\n> **${dayText}**\n\n${content || ''}`;
+    message = {
+      msgtype: 'markdown',
+      markdown: {
+        content: markdownContent,
+      },
+    };
+  } else {
+    // Text format - plain text
+    const textContent = `${urgency} ${title}\n\n${dayText}\n\n${content || ''}`;
+    message = {
+      msgtype: 'text',
+      text: {
+        content: textContent,
+      },
+    };
+  }
 
   try {
     const response = await axios.post(webhookUrl, message, {

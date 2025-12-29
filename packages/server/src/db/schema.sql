@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS events (
     target_date DATE NOT NULL,
     target_time TEXT DEFAULT '09:00',  -- 通知时间，格式 HH:MM
     remind_days INTEGER DEFAULT 7,
+    message_format TEXT DEFAULT 'text' CHECK(message_format IN ('text', 'markdown')),  -- 消息格式
     group_id INTEGER REFERENCES groups(id) ON DELETE SET NULL,
     user_id INTEGER NOT NULL REFERENCES users(id),
     status TEXT DEFAULT 'active' CHECK(status IN ('active', 'expired', 'completed')),

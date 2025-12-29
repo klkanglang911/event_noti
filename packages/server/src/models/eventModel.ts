@@ -9,6 +9,7 @@ interface EventRow {
   target_date: string;
   target_time: string;
   remind_days: number;
+  message_format: 'text' | 'markdown';
   group_id: number | null;
   user_id: number;
   status: 'active' | 'expired' | 'completed';
@@ -34,6 +35,7 @@ function rowToEvent(row: EventRow): Event {
     targetDate: row.target_date,
     targetTime: row.target_time || '09:00',
     remindDays: row.remind_days,
+    messageFormat: row.message_format || 'text',
     groupId: row.group_id,
     userId: row.user_id,
     status: row.status,
@@ -95,16 +97,18 @@ export function create(userId: number, input: CreateEventInput): Event {
   return transaction(() => {
     const now = getCurrentTimestamp();
     const targetTime = input.targetTime || '09:00';
+    const messageFormat = input.messageFormat || 'text';
 
     const result = db.prepare(`
-      INSERT INTO events (title, content, target_date, target_time, remind_days, group_id, user_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO events (title, content, target_date, target_time, remind_days, message_format, group_id, user_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       input.title,
       input.content || null,
       input.targetDate,
       targetTime,
       input.remindDays,
+      messageFormat,
       input.groupId || null,
       userId,
       now,
@@ -152,6 +156,10 @@ export function update(id: number, input: UpdateEventInput): Event | null {
       updates.push('remind_days = ?');
       values.push(input.remindDays);
       needRegenerateNotifications = true;
+    }
+    if (input.messageFormat !== undefined) {
+      updates.push('message_format = ?');
+      values.push(input.messageFormat);
     }
     if (input.groupId !== undefined) {
       updates.push('group_id = ?');
