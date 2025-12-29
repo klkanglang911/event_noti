@@ -34,6 +34,10 @@ app.use(helmet({
       connectSrc: ["'self'"],
     },
   } : false,
+  // Disable HSTS when not using HTTPS
+  hsts: false,
+  // Disable cross-origin policies that may cause issues without HTTPS
+  crossOriginEmbedderPolicy: false,
 }));
 app.use(cors({
   origin: isProduction
