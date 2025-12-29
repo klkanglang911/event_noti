@@ -90,7 +90,7 @@ export default function EventListPage() {
       </div>
 
       {/* Events list */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         {isLoading ? (
           <div className="p-6 space-y-4">
             {[1, 2, 3].map((i) => (
