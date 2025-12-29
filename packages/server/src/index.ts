@@ -63,7 +63,8 @@ if (isProduction) {
   app.use(express.static(webDistPath));
 
   // SPA fallback - serve index.html for all non-API routes
-  app.get('*', (_req, res) => {
+  // Express 5 uses path-to-regexp 8.x which requires {*path} syntax instead of *
+  app.get('{*path}', (_req, res) => {
     res.sendFile(path.join(webDistPath, 'index.html'));
   });
 } else {
