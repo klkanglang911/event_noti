@@ -2,18 +2,29 @@ import * as groupModel from '../models/groupModel.ts';
 import * as webhookModel from '../models/webhookModel.ts';
 import type { Group, CreateGroupInput, UpdateGroupInput } from '@event-noti/shared';
 
-// Get groups for user
-export function getGroupsByUser(userId: number): Group[] {
+// Get groups (admin: all, user: assigned only)
+export function getGroups(userId: number, isAdmin: boolean): Group[] {
+  if (isAdmin) {
+    return groupModel.findAll();
+  }
   return groupModel.findByUserId(userId);
 }
 
-// Get group by ID
-export function getGroupById(id: number): Group | null {
-  return groupModel.findById(id);
+// Get group by ID (with access check)
+export function getGroupById(id: number, userId: number, isAdmin: boolean): Group | null {
+  const group = groupModel.findById(id);
+  if (!group) return null;
+
+  // Check access
+  if (!groupModel.userHasAccess(id, userId, isAdmin)) {
+    return null;
+  }
+
+  return group;
 }
 
-// Create group
-export function createGroup(userId: number, input: CreateGroupInput): Group {
+// Create group (admin only, checked in controller)
+export function createGroup(createdBy: number, input: CreateGroupInput): Group {
   // Validate webhook exists if provided
   if (input.webhookId) {
     const webhook = webhookModel.findById(input.webhookId);
@@ -22,19 +33,13 @@ export function createGroup(userId: number, input: CreateGroupInput): Group {
     }
   }
 
-  return groupModel.create(userId, input);
+  return groupModel.create(createdBy, input);
 }
 
-// Update group
-export function updateGroup(
-  id: number,
-  userId: number,
-  input: UpdateGroupInput
-): Group | null {
-  // Check if group belongs to user
-  if (!groupModel.belongsToUser(id, userId)) {
-    return null;
-  }
+// Update group (admin only, checked in controller)
+export function updateGroup(id: number, input: UpdateGroupInput): Group | null {
+  const group = groupModel.findById(id);
+  if (!group) return null;
 
   // Validate webhook exists if provided
   if (input.webhookId) {
@@ -47,16 +52,31 @@ export function updateGroup(
   return groupModel.update(id, input);
 }
 
-// Delete group
-export function deleteGroup(id: number, userId: number): boolean {
-  if (!groupModel.belongsToUser(id, userId)) {
-    return false;
-  }
-
+// Delete group (admin only, checked in controller)
+export function deleteGroup(id: number): boolean {
   return groupModel.remove(id);
 }
 
-// Check if group belongs to user
-export function groupBelongsToUser(id: number, userId: number): boolean {
-  return groupModel.belongsToUser(id, userId);
+// Get users assigned to a group (admin only)
+export function getAssignedUsers(groupId: number): { userId: number; username: string; displayName: string }[] {
+  const users = groupModel.getAssignedUsers(groupId);
+  return users.map((u) => ({
+    userId: u.user_id,
+    username: u.username,
+    displayName: u.display_name,
+  }));
+}
+
+// Set users assigned to a group (admin only)
+export function setAssignedUsers(groupId: number, userIds: number[], assignedBy: number): boolean {
+  const group = groupModel.findById(groupId);
+  if (!group) return false;
+
+  groupModel.setAssignedUsers(groupId, userIds, assignedBy);
+  return true;
+}
+
+// Check if user has access to group
+export function userHasAccess(groupId: number, userId: number, isAdmin: boolean): boolean {
+  return groupModel.userHasAccess(groupId, userId, isAdmin);
 }

@@ -74,6 +74,56 @@ function runMigrations(): void {
     db.exec("INSERT OR IGNORE INTO settings (key, value) VALUES ('timezone', 'Asia/Shanghai')");
     console.log('✅ Migration: Created settings table with default timezone');
   }
+
+  // Migration 5: Create user_groups table and migrate groups.user_id to created_by
+  const userGroupsTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='user_groups'").get();
+  if (!userGroupsTable) {
+    // Create user_groups table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS user_groups (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+        assigned_by INTEGER NOT NULL REFERENCES users(id),
+        assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, group_id)
+      )
+    `);
+    db.exec('CREATE INDEX IF NOT EXISTS idx_user_groups_user_id ON user_groups(user_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_user_groups_group_id ON user_groups(group_id)');
+    console.log('✅ Migration: Created user_groups table');
+
+    // Check if groups table has user_id column (old schema)
+    const groupsInfo = db.prepare("PRAGMA table_info(groups)").all() as { name: string }[];
+    const hasUserId = groupsInfo.some((col) => col.name === 'user_id');
+    const hasCreatedBy = groupsInfo.some((col) => col.name === 'created_by');
+
+    if (hasUserId && !hasCreatedBy) {
+      // Migrate: copy user_id to user_groups, then rename column
+      // First, assign existing groups to their creators
+      db.exec(`
+        INSERT OR IGNORE INTO user_groups (user_id, group_id, assigned_by, assigned_at)
+        SELECT user_id, id, user_id, created_at FROM groups WHERE user_id IS NOT NULL
+      `);
+      console.log('✅ Migration: Migrated existing group assignments to user_groups');
+
+      // Add created_by column if not exists
+      db.exec('ALTER TABLE groups ADD COLUMN created_by INTEGER REFERENCES users(id)');
+      // Copy user_id to created_by
+      db.exec('UPDATE groups SET created_by = user_id WHERE created_by IS NULL');
+      console.log('✅ Migration: Added created_by column to groups');
+    }
+  }
+
+  // Migration 6: Create index on groups.created_by if column exists
+  const groupsInfo = db.prepare("PRAGMA table_info(groups)").all() as { name: string }[];
+  if (groupsInfo.some((col) => col.name === 'created_by')) {
+    db.exec('CREATE INDEX IF NOT EXISTS idx_groups_created_by ON groups(created_by)');
+  }
+
+  // Ensure user_groups indexes exist
+  db.exec('CREATE INDEX IF NOT EXISTS idx_user_groups_user_id ON user_groups(user_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_user_groups_group_id ON user_groups(group_id)');
 }
 
 // Seed default admin user

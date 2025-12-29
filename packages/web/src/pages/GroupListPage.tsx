@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { FolderOpen, Plus, Trash2, Edit, X, Loader2 } from 'lucide-react';
-import { useGroups, useCreateGroup, useUpdateGroup, useDeleteGroup } from '@/hooks/useGroups';
+import { FolderOpen, Plus, Trash2, Edit, X, Loader2, Users } from 'lucide-react';
+import { useGroups, useCreateGroup, useUpdateGroup, useDeleteGroup, useGroupUsers, useSetGroupUsers } from '@/hooks/useGroups';
 import { useWebhooks } from '@/hooks/useWebhooks';
+import { useUsers } from '@/hooks/useUsers';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '@/services/api';
 import type { Group } from '@event-noti/shared';
@@ -19,7 +20,7 @@ const COLORS = [
   '#6B7280', // gray
 ];
 
-// Modal component
+// Modal component for create/edit group
 function GroupModal({
   isOpen,
   onClose,
@@ -174,16 +175,143 @@ function GroupModal({
   );
 }
 
+// Modal component for user assignment
+function UserAssignmentModal({
+  isOpen,
+  onClose,
+  group,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  group: Group | null;
+}) {
+  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+
+  const { data: allUsers, isLoading: loadingUsers } = useUsers();
+  const { data: assignedUsers, isLoading: loadingAssigned } = useGroupUsers(group?.id || 0);
+  const setGroupUsers = useSetGroupUsers();
+
+  const isLoading = setGroupUsers.isPending;
+
+  // Sync selected users when modal opens
+  useEffect(() => {
+    if (isOpen && assignedUsers) {
+      setSelectedUserIds(assignedUsers.map((u) => u.userId));
+    }
+  }, [isOpen, assignedUsers]);
+
+  const handleToggleUser = (userId: number) => {
+    setSelectedUserIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const handleSubmit = async () => {
+    if (!group) return;
+
+    try {
+      await setGroupUsers.mutateAsync({
+        groupId: group.id,
+        userIds: selectedUserIds,
+      });
+      toast.success('用户分配已更新');
+      onClose();
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  };
+
+  if (!isOpen || !group) return null;
+
+  // Filter out admin users - they have access to all groups anyway
+  const regularUsers = allUsers?.filter((u) => u.role !== 'admin') || [];
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">分配用户</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              分组：<span className="font-medium">{group.name}</span>
+            </p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        {/* User list */}
+        <div className="p-6">
+          {loadingUsers || loadingAssigned ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+            </div>
+          ) : regularUsers.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>暂无普通用户</p>
+              <p className="text-sm mt-1">请先创建普通用户账号</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {regularUsers.map((user) => (
+                <label
+                  key={user.id}
+                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedUserIds.includes(user.id)}
+                    onChange={() => handleToggleUser(user.id)}
+                    className="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
+                  />
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">{user.displayName}</p>
+                    <p className="text-sm text-gray-500">@{user.username}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+
+          <p className="text-sm text-gray-500 mt-4">
+            已选择 {selectedUserIds.length} 个用户
+          </p>
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200">
+          <button type="button" onClick={onClose} className="btn-secondary" disabled={isLoading}>
+            取消
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            className="btn-primary"
+            disabled={isLoading || regularUsers.length === 0}
+          >
+            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>保存</span>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function GroupListPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<Group | undefined>();
+  const [userModalOpen, setUserModalOpen] = useState(false);
+  const [assigningGroup, setAssigningGroup] = useState<Group | null>(null);
 
   const { data: groups, isLoading } = useGroups();
   const { data: webhooks } = useWebhooks();
   const deleteGroup = useDeleteGroup();
 
   // Transform webhooks to simple format for modal
-  const webhookOptions = webhooks?.map(w => ({ id: w.id, name: w.name })) || [];
+  const webhookOptions = webhooks?.map((w) => ({ id: w.id, name: w.name })) || [];
 
   const handleEdit = (group: Group) => {
     setEditingGroup(group);
@@ -198,6 +326,16 @@ export default function GroupListPage() {
   const handleClose = () => {
     setModalOpen(false);
     setEditingGroup(undefined);
+  };
+
+  const handleAssignUsers = (group: Group) => {
+    setAssigningGroup(group);
+    setUserModalOpen(true);
+  };
+
+  const handleCloseUserModal = () => {
+    setUserModalOpen(false);
+    setAssigningGroup(null);
   };
 
   const handleDelete = async (id: number, name: string, eventCount?: number) => {
@@ -256,6 +394,13 @@ export default function GroupListPage() {
                 </div>
                 <div className="flex items-center gap-1">
                   <button
+                    onClick={() => handleAssignUsers(group)}
+                    className="p-1.5 hover:bg-gray-100 rounded-lg"
+                    title="分配用户"
+                  >
+                    <Users className="w-4 h-4 text-gray-400" />
+                  </button>
+                  <button
                     onClick={() => handleEdit(group)}
                     className="p-1.5 hover:bg-gray-100 rounded-lg"
                     title="编辑"
@@ -295,12 +440,19 @@ export default function GroupListPage() {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Create/Edit Modal */}
       <GroupModal
         isOpen={modalOpen}
         onClose={handleClose}
         group={editingGroup}
         webhooks={webhookOptions}
+      />
+
+      {/* User Assignment Modal */}
+      <UserAssignmentModal
+        isOpen={userModalOpen}
+        onClose={handleCloseUserModal}
+        group={assigningGroup}
       />
     </div>
   );

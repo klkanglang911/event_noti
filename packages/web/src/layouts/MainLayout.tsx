@@ -20,11 +20,11 @@ import { useAuthStore } from '@/stores/authStore';
 const navItems = [
   { path: '/', label: '仪表板', icon: LayoutDashboard },
   { path: '/events', label: '事件管理', icon: Calendar },
-  { path: '/groups', label: '分组管理', icon: FolderOpen },
   { path: '/notifications', label: '通知历史', icon: History },
 ];
 
 const adminNavItems = [
+  { path: '/groups', label: '分组管理', icon: FolderOpen },
   { path: '/webhooks', label: 'Webhook', icon: Webhook },
   { path: '/users', label: '用户管理', icon: Users },
   { path: '/settings', label: '系统设置', icon: Settings },

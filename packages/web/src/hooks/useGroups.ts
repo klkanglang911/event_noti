@@ -7,6 +7,7 @@ export const groupKeys = {
   all: ['groups'] as const,
   list: () => [...groupKeys.all, 'list'] as const,
   detail: (id: number) => [...groupKeys.all, 'detail', id] as const,
+  users: (id: number) => [...groupKeys.all, 'users', id] as const,
 };
 
 // Get groups list
@@ -59,6 +60,28 @@ export function useDeleteGroup() {
     mutationFn: (id: number) => groupService.deleteGroup(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: groupKeys.all });
+    },
+  });
+}
+
+// Get users assigned to group
+export function useGroupUsers(groupId: number) {
+  return useQuery({
+    queryKey: groupKeys.users(groupId),
+    queryFn: () => groupService.getGroupUsers(groupId),
+    enabled: !!groupId,
+  });
+}
+
+// Set users assigned to group
+export function useSetGroupUsers() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ groupId, userIds }: { groupId: number; userIds: number[] }) =>
+      groupService.setGroupUsers(groupId, userIds),
+    onSuccess: (_, { groupId }) => {
+      queryClient.invalidateQueries({ queryKey: groupKeys.users(groupId) });
     },
   });
 }

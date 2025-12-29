@@ -16,10 +16,30 @@ const updateGroupSchema = z.object({
   webhookId: z.number().int().positive().optional().nullable(),
 });
 
+const assignUsersSchema = z.object({
+  userIds: z.array(z.number().int().positive()),
+});
+
+// Helper to check admin
+function requireAdmin(req: Request, res: Response): boolean {
+  if (req.user?.role !== 'admin') {
+    res.status(403).json({
+      error: { code: ERROR_CODES.FORBIDDEN, message: '需要管理员权限' },
+      success: false,
+    });
+    return false;
+  }
+  return true;
+}
+
 // GET /api/groups - List groups
+// Admin: see all groups
+// User: see only assigned groups
 export function listGroups(req: Request, res: Response): void {
   const userId = req.user!.id;
-  const groups = groupService.getGroupsByUser(userId);
+  const isAdmin = req.user!.role === 'admin';
+
+  const groups = groupService.getGroups(userId, isAdmin);
   res.json({ data: groups, success: true });
 }
 
@@ -27,6 +47,7 @@ export function listGroups(req: Request, res: Response): void {
 export function getGroup(req: Request, res: Response): void {
   const id = parseInt(req.params.id, 10);
   const userId = req.user!.id;
+  const isAdmin = req.user!.role === 'admin';
 
   if (isNaN(id)) {
     res.status(400).json({
@@ -36,11 +57,11 @@ export function getGroup(req: Request, res: Response): void {
     return;
   }
 
-  const group = groupService.getGroupById(id);
+  const group = groupService.getGroupById(id, userId, isAdmin);
 
-  if (!group || group.userId !== userId) {
+  if (!group) {
     res.status(404).json({
-      error: { code: ERROR_CODES.NOT_FOUND, message: '分组不存在' },
+      error: { code: ERROR_CODES.NOT_FOUND, message: '分组不存在或无权访问' },
       success: false,
     });
     return;
@@ -49,10 +70,11 @@ export function getGroup(req: Request, res: Response): void {
   res.json({ data: group, success: true });
 }
 
-// POST /api/groups - Create group
+// POST /api/groups - Create group (admin only)
 export function createGroup(req: Request, res: Response): void {
-  const userId = req.user!.id;
+  if (!requireAdmin(req, res)) return;
 
+  const userId = req.user!.id;
   const parseResult = createGroupSchema.safeParse(req.body);
 
   if (!parseResult.success) {
@@ -81,10 +103,11 @@ export function createGroup(req: Request, res: Response): void {
   }
 }
 
-// PUT /api/groups/:id - Update group
+// PUT /api/groups/:id - Update group (admin only)
 export function updateGroup(req: Request, res: Response): void {
+  if (!requireAdmin(req, res)) return;
+
   const id = parseInt(req.params.id, 10);
-  const userId = req.user!.id;
 
   if (isNaN(id)) {
     res.status(400).json({
@@ -108,7 +131,7 @@ export function updateGroup(req: Request, res: Response): void {
   }
 
   try {
-    const group = groupService.updateGroup(id, userId, parseResult.data);
+    const group = groupService.updateGroup(id, parseResult.data);
 
     if (!group) {
       res.status(404).json({
@@ -131,10 +154,11 @@ export function updateGroup(req: Request, res: Response): void {
   }
 }
 
-// DELETE /api/groups/:id - Delete group
+// DELETE /api/groups/:id - Delete group (admin only)
 export function deleteGroup(req: Request, res: Response): void {
+  if (!requireAdmin(req, res)) return;
+
   const id = parseInt(req.params.id, 10);
-  const userId = req.user!.id;
 
   if (isNaN(id)) {
     res.status(400).json({
@@ -144,7 +168,7 @@ export function deleteGroup(req: Request, res: Response): void {
     return;
   }
 
-  const success = groupService.deleteGroup(id, userId);
+  const success = groupService.deleteGroup(id);
 
   if (!success) {
     res.status(404).json({
@@ -155,4 +179,63 @@ export function deleteGroup(req: Request, res: Response): void {
   }
 
   res.json({ data: { message: '分组已删除' }, success: true });
+}
+
+// GET /api/groups/:id/users - Get users assigned to group (admin only)
+export function getGroupUsers(req: Request, res: Response): void {
+  if (!requireAdmin(req, res)) return;
+
+  const id = parseInt(req.params.id, 10);
+
+  if (isNaN(id)) {
+    res.status(400).json({
+      error: { code: ERROR_CODES.INVALID_INPUT, message: '无效的分组 ID' },
+      success: false,
+    });
+    return;
+  }
+
+  const users = groupService.getAssignedUsers(id);
+  res.json({ data: users, success: true });
+}
+
+// PUT /api/groups/:id/users - Set users assigned to group (admin only)
+export function setGroupUsers(req: Request, res: Response): void {
+  if (!requireAdmin(req, res)) return;
+
+  const id = parseInt(req.params.id, 10);
+  const assignedBy = req.user!.id;
+
+  if (isNaN(id)) {
+    res.status(400).json({
+      error: { code: ERROR_CODES.INVALID_INPUT, message: '无效的分组 ID' },
+      success: false,
+    });
+    return;
+  }
+
+  const parseResult = assignUsersSchema.safeParse(req.body);
+
+  if (!parseResult.success) {
+    res.status(400).json({
+      error: {
+        code: ERROR_CODES.VALIDATION_ERROR,
+        message: parseResult.error.issues[0].message,
+      },
+      success: false,
+    });
+    return;
+  }
+
+  const success = groupService.setAssignedUsers(id, parseResult.data.userIds, assignedBy);
+
+  if (!success) {
+    res.status(404).json({
+      error: { code: ERROR_CODES.NOT_FOUND, message: '分组不存在' },
+      success: false,
+    });
+    return;
+  }
+
+  res.json({ data: { message: '用户分配已更新' }, success: true });
 }

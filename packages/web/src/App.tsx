@@ -49,10 +49,17 @@ function App() {
             <Route path="/events" element={<EventListPage />} />
             <Route path="/events/new" element={<EventFormPage />} />
             <Route path="/events/:id/edit" element={<EventFormPage />} />
-            <Route path="/groups" element={<GroupListPage />} />
             <Route path="/notifications" element={<NotificationHistoryPage />} />
 
             {/* Admin routes */}
+            <Route
+              path="/groups"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <GroupListPage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/webhooks"
               element={

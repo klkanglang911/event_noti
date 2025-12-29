@@ -24,15 +24,26 @@ CREATE TABLE IF NOT EXISTS webhooks (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- 分组表
+-- 分组表 (created_by column added via migration for existing databases)
 CREATE TABLE IF NOT EXISTS groups (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     color TEXT DEFAULT '#3B82F6',
     webhook_id INTEGER REFERENCES webhooks(id) ON DELETE SET NULL,
-    user_id INTEGER NOT NULL REFERENCES users(id),
+    user_id INTEGER REFERENCES users(id),  -- Legacy column for backward compatibility
+    created_by INTEGER REFERENCES users(id),  -- 创建者（管理员）
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 用户-分组关联表（管理员分配用户到分组）
+CREATE TABLE IF NOT EXISTS user_groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    assigned_by INTEGER NOT NULL REFERENCES users(id),  -- 分配者（管理员）
+    assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, group_id)
 );
 
 -- 事件表
@@ -70,10 +81,11 @@ CREATE INDEX IF NOT EXISTS idx_events_user_id ON events(user_id);
 CREATE INDEX IF NOT EXISTS idx_events_target_date ON events(target_date);
 CREATE INDEX IF NOT EXISTS idx_events_status ON events(status);
 CREATE INDEX IF NOT EXISTS idx_events_group_id ON events(group_id);
-CREATE INDEX IF NOT EXISTS idx_groups_user_id ON groups(user_id);
+-- idx_groups_created_by created in migration after column is added
 CREATE INDEX IF NOT EXISTS idx_notifications_scheduled_date ON notifications(scheduled_date);
 CREATE INDEX IF NOT EXISTS idx_notifications_status ON notifications(status);
 CREATE INDEX IF NOT EXISTS idx_notifications_event_id ON notifications(event_id);
+-- idx_user_groups indexes created in migration
 
 -- 系统设置表
 CREATE TABLE IF NOT EXISTS settings (

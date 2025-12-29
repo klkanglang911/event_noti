@@ -11,6 +11,11 @@ interface GroupResponse {
   success: boolean;
 }
 
+interface GroupUsersResponse {
+  data: { userId: number; username: string; displayName: string }[];
+  success: boolean;
+}
+
 // Get all groups
 export async function getGroups(): Promise<Group[]> {
   const response = await api.get<GroupListResponse>('/groups');
@@ -38,4 +43,15 @@ export async function updateGroup(id: number, input: UpdateGroupInput): Promise<
 // Delete group
 export async function deleteGroup(id: number): Promise<void> {
   await api.delete(`/groups/${id}`);
+}
+
+// Get users assigned to group (admin only)
+export async function getGroupUsers(groupId: number): Promise<{ userId: number; username: string; displayName: string }[]> {
+  const response = await api.get<GroupUsersResponse>(`/groups/${groupId}/users`);
+  return response.data.data;
+}
+
+// Set users assigned to group (admin only)
+export async function setGroupUsers(groupId: number, userIds: number[]): Promise<void> {
+  await api.put(`/groups/${groupId}/users`, { userIds });
 }
