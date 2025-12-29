@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Users, Plus, Trash2, Edit, X, Loader2 } from 'lucide-react';
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '@/hooks/useUsers';
 import { useAuthStore } from '@/stores/authStore';
@@ -16,16 +16,26 @@ function UserModal({
   onClose: () => void;
   user?: User;
 }) {
-  const [username, setUsername] = useState(user?.username || '');
-  const [displayName, setDisplayName] = useState(user?.displayName || '');
+  const [username, setUsername] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'admin' | 'user'>(user?.role || 'user');
+  const [role, setRole] = useState<'admin' | 'user'>('user');
 
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
 
   const isLoading = createUser.isPending || updateUser.isPending;
   const isEditing = !!user;
+
+  // Sync state when user prop changes or modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setUsername(user?.username || '');
+      setDisplayName(user?.displayName || '');
+      setPassword('');
+      setRole(user?.role || 'user');
+    }
+  }, [isOpen, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
