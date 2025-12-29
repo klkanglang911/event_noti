@@ -19,4 +19,7 @@ router.get('/:id', notificationController.getNotification);
 // POST /api/notifications/:id/retry - Retry failed notification
 router.post('/:id/retry', notificationController.retryNotification);
 
+// DELETE /api/notifications/:id - Delete notification
+router.delete('/:id', notificationController.deleteNotification);
+
 export default router;

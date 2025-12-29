@@ -55,3 +55,8 @@ export async function getNotificationStats(): Promise<NotificationStatsResponse[
 export async function retryNotification(id: number): Promise<void> {
   await api.post(`/notifications/${id}/retry`);
 }
+
+// Delete notification
+export async function deleteNotification(id: number): Promise<void> {
+  await api.delete(`/notifications/${id}`);
+}

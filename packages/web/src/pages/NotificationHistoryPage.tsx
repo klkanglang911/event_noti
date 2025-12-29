@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { History, RefreshCw, Loader2, ChevronLeft, ChevronRight, AlertCircle, CheckCircle, Clock } from 'lucide-react';
-import { useNotifications, useNotificationStats, useRetryNotification } from '@/hooks/useNotifications';
+import { History, RefreshCw, Loader2, ChevronLeft, ChevronRight, AlertCircle, CheckCircle, Clock, Trash2, X } from 'lucide-react';
+import { useNotifications, useNotificationStats, useRetryNotification, useDeleteNotification } from '@/hooks/useNotifications';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '@/services/api';
 import type { Notification } from '@event-noti/shared';
@@ -70,6 +70,47 @@ function RetryButton({ notification }: { notification: Notification }) {
         <RefreshCw className="w-4 h-4" />
       )}
       <span>重试</span>
+    </button>
+  );
+}
+
+// Delete/Cancel button component
+function DeleteButton({ notification }: { notification: Notification }) {
+  const deleteNotification = useDeleteNotification();
+
+  const handleDelete = async () => {
+    const isPending = notification.status === 'pending';
+    const confirmMessage = isPending
+      ? '确定要取消这条待发送的通知吗？'
+      : '确定要删除这条通知记录吗？';
+
+    if (!confirm(confirmMessage)) return;
+
+    try {
+      await deleteNotification.mutateAsync(notification.id);
+      toast.success(isPending ? '通知已取消' : '通知已删除');
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  };
+
+  const isPending = notification.status === 'pending';
+
+  return (
+    <button
+      onClick={handleDelete}
+      disabled={deleteNotification.isPending}
+      className="btn-secondary text-sm py-1.5 px-3 text-red-600 hover:bg-red-50"
+      title={isPending ? '取消发送' : '删除记录'}
+    >
+      {deleteNotification.isPending ? (
+        <Loader2 className="w-4 h-4 animate-spin" />
+      ) : isPending ? (
+        <X className="w-4 h-4" />
+      ) : (
+        <Trash2 className="w-4 h-4" />
+      )}
+      <span>{isPending ? '取消' : '删除'}</span>
     </button>
   );
 }
@@ -247,7 +288,10 @@ export default function NotificationHistoryPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <RetryButton notification={notification} />
+                      <div className="flex items-center justify-end gap-2">
+                        <RetryButton notification={notification} />
+                        <DeleteButton notification={notification} />
+                      </div>
                     </td>
                   </tr>
                 ))}

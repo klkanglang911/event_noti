@@ -90,3 +90,29 @@ export function getStats(req: Request, res: Response): void {
   const stats = notificationService.getNotificationStats(userId);
   res.json({ data: stats, success: true });
 }
+
+// DELETE /api/notifications/:id - Delete notification
+export function deleteNotification(req: Request, res: Response): void {
+  const id = parseInt(req.params.id, 10);
+  const userId = req.user!.id;
+
+  if (isNaN(id)) {
+    res.status(400).json({
+      error: { code: ERROR_CODES.INVALID_INPUT, message: '无效的通知 ID' },
+      success: false,
+    });
+    return;
+  }
+
+  const result = notificationService.deleteNotification(id, userId);
+
+  if (!result.success) {
+    res.status(400).json({
+      error: { code: ERROR_CODES.NOT_FOUND, message: result.message },
+      success: false,
+    });
+    return;
+  }
+
+  res.json({ data: { message: result.message }, success: true });
+}

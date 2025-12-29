@@ -199,6 +199,12 @@ export function resetForRetry(id: number): void {
   `).run(id);
 }
 
+// Delete a notification by ID
+export function remove(id: number): boolean {
+  const result = db.prepare('DELETE FROM notifications WHERE id = ?').run(id);
+  return result.changes > 0;
+}
+
 // Get failed notifications that can be retried
 export function findFailedForRetry(maxRetries: number = 3): Notification[] {
   // Use timezone-aware today

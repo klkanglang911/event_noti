@@ -120,3 +120,28 @@ export function getNotificationStats(userId: number): {
     failed: failed.total,
   };
 }
+
+// Delete a notification (with ownership check)
+export function deleteNotification(
+  id: number,
+  userId: number
+): { success: boolean; message: string } {
+  const notification = notificationModel.findById(id);
+
+  if (!notification) {
+    return { success: false, message: '通知不存在' };
+  }
+
+  // Check ownership via event
+  const event = eventModel.findById(notification.eventId);
+  if (!event || event.userId !== userId) {
+    return { success: false, message: '通知不存在' };
+  }
+
+  const deleted = notificationModel.remove(id);
+  if (deleted) {
+    return { success: true, message: '通知已删除' };
+  } else {
+    return { success: false, message: '删除失败' };
+  }
+}
