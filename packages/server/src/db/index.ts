@@ -55,6 +55,24 @@ function runMigrations(): void {
     console.log('✅ Migration: Added scheduled_time column to notifications');
   }
 
+  // Migration 2.1: Sync notifications.scheduled_time with events.target_time
+  // This fixes existing notifications that got default '09:00' instead of event's target_time
+  const needsSync = db.prepare(`
+    SELECT COUNT(*) as count FROM notifications n
+    INNER JOIN events e ON n.event_id = e.id
+    WHERE n.scheduled_time != e.target_time AND n.status = 'pending'
+  `).get() as { count: number };
+
+  if (needsSync.count > 0) {
+    db.exec(`
+      UPDATE notifications SET scheduled_time = (
+        SELECT e.target_time FROM events e WHERE e.id = notifications.event_id
+      )
+      WHERE event_id IN (SELECT id FROM events)
+    `);
+    console.log(`✅ Migration: Synced ${needsSync.count} notifications with event target_time`);
+  }
+
   // Migration 3: Add message_format column to events table
   if (!eventsInfo.some((col) => col.name === 'message_format')) {
     db.exec("ALTER TABLE events ADD COLUMN message_format TEXT DEFAULT 'text'");
