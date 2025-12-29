@@ -29,8 +29,14 @@ export async function createUser(input: CreateUserInput): Promise<User> {
 }
 
 // Update user
-export function updateUser(id: number, input: UpdateUserInput): User | null {
-  return userModel.update(id, input);
+export async function updateUser(id: number, input: UpdateUserInput): Promise<User | null> {
+  // If password is provided, hash it
+  let passwordHash: string | undefined;
+  if (input.password) {
+    passwordHash = await authService.hashPassword(input.password);
+  }
+
+  return userModel.update(id, input, passwordHash);
 }
 
 // Delete user (soft delete)

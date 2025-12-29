@@ -18,6 +18,7 @@ export interface CreateUserInput {
 
 export interface UpdateUserInput {
   displayName?: string;
+  password?: string;
   role?: 'admin' | 'user';
   isActive?: boolean;
 }

@@ -13,6 +13,7 @@ const createUserSchema = z.object({
 
 const updateUserSchema = z.object({
   displayName: z.string().min(1).max(50).optional(),
+  password: z.string().min(6, '密码至少6个字符').optional(),
   role: z.enum(['admin', 'user']).optional(),
   isActive: z.boolean().optional(),
 });
@@ -79,7 +80,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
 }
 
 // PUT /api/users/:id - Update user
-export function updateUser(req: Request, res: Response): void {
+export async function updateUser(req: Request, res: Response): Promise<void> {
   const id = parseInt(req.params.id, 10);
 
   if (isNaN(id)) {
@@ -103,7 +104,7 @@ export function updateUser(req: Request, res: Response): void {
     return;
   }
 
-  const user = userService.updateUser(id, parseResult.data);
+  const user = await userService.updateUser(id, parseResult.data);
 
   if (!user) {
     res.status(404).json({

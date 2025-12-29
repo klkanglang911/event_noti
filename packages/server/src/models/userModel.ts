@@ -75,7 +75,7 @@ export function create(input: CreateUserInput & { passwordHash: string }): User 
 }
 
 // Update user
-export function update(id: number, input: UpdateUserInput): User | null {
+export function update(id: number, input: UpdateUserInput, passwordHash?: string): User | null {
   const user = findById(id);
   if (!user) return null;
 
@@ -85,6 +85,10 @@ export function update(id: number, input: UpdateUserInput): User | null {
   if (input.displayName !== undefined) {
     updates.push('display_name = ?');
     values.push(input.displayName);
+  }
+  if (passwordHash !== undefined) {
+    updates.push('password_hash = ?');
+    values.push(passwordHash);
   }
   if (input.role !== undefined) {
     updates.push('role = ?');
