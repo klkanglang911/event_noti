@@ -21,7 +21,6 @@ export default function EventFormPage() {
   const [content, setContent] = useState('');
   const [targetDate, setTargetDate] = useState('');
   const [targetTime, setTargetTime] = useState('09:00');
-  const [remindDays, setRemindDays] = useState(7);
   const [groupId, setGroupId] = useState<number | ''>('');
   const [messageFormat, setMessageFormat] = useState<MessageFormat>('text');
   const [showPreview, setShowPreview] = useState(false);
@@ -34,7 +33,6 @@ export default function EventFormPage() {
       setContent(event.content || '');
       setTargetDate(event.targetDate);
       setTargetTime(event.targetTime || '09:00');
-      setRemindDays(event.remindDays);
       setGroupId(event.groupId || '');
       setMessageFormat(event.messageFormat || 'text');
     }
@@ -106,7 +104,6 @@ export default function EventFormPage() {
       content: content.trim() || undefined,
       targetDate,
       targetTime,
-      remindDays,
       messageFormat,
       groupId: groupId || undefined,
     };
@@ -293,29 +290,9 @@ export default function EventFormPage() {
             className="input w-32"
             disabled={isLoading}
           />
-          <p className="text-sm text-gray-500 mt-1">在指定时间发送提醒通知</p>
-        </div>
-
-        {/* Remind Days */}
-        <div>
-          <label htmlFor="remindDays" className="label">
-            提前提醒天数
-          </label>
-          <div className="flex items-center gap-2">
-            <input
-              id="remindDays"
-              type="number"
-              value={remindDays}
-              onChange={(e) => setRemindDays(Math.max(0, Math.min(30, parseInt(e.target.value) || 0)))}
-              className="input w-24"
-              min={0}
-              max={30}
-              disabled={isLoading}
-            />
-            <span className="text-gray-500">天</span>
-          </div>
           <p className="text-sm text-gray-500 mt-1">
-            从目标日期前 {remindDays} 天开始，每天发送提醒通知
+            在指定时间发送提醒通知。系统将根据剩余天数智能安排通知频率：
+            创建时立即通知，之后根据距离目标日期的时间自动调整（30天以上每30天、7-30天每7天、3-7天每3天、3天内每天）
           </p>
         </div>
 

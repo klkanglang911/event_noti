@@ -136,10 +136,18 @@ export function findById(id: number): Notification | null {
   return row ? rowToNotification(row) : null;
 }
 
-// Generate notification records for an event
-export function generateForEvent(eventId: number, targetDate: string, remindDays: number, targetTime: string = '09:00'): void {
+// Generate notification records for an event based on smart rules
+// Rules:
+// 1. Event creation: immediate confirmation notification (today)
+// 2. Remaining > 30 days: notify every 30 days
+// 3. Remaining <= 30 and > 7 days: notify every 7 days
+// 4. Remaining <= 7 and > 3 days: notify every 3 days
+// 5. Remaining <= 3 days: notify daily
+// 6. Target date: final reminder
+export function generateForEvent(eventId: number, targetDate: string, _remindDays: number, targetTime: string = '09:00'): void {
   const now = getCurrentTimestamp();
   const target = new Date(targetDate);
+  target.setHours(0, 0, 0, 0);
 
   const stmt = db.prepare(`
     INSERT INTO notifications (event_id, scheduled_date, scheduled_time, created_at)
@@ -147,18 +155,60 @@ export function generateForEvent(eventId: number, targetDate: string, remindDays
   `);
 
   // Get today's date in configured timezone
-  const today = settingsService.getTodayInTimezone();
+  const todayStr = settingsService.getTodayInTimezone();
+  const today = new Date(todayStr);
+  today.setHours(0, 0, 0, 0);
 
-  // Generate notifications from (targetDate - remindDays) to targetDate
-  for (let i = remindDays; i >= 0; i--) {
-    const date = new Date(target);
-    date.setDate(date.getDate() - i);
-    const dateStr = date.toISOString().split('T')[0];
+  // Calculate notification dates
+  const notificationDates = new Set<string>();
 
-    // Only create notifications for today or future dates (using timezone-aware today)
-    if (dateStr >= today) {
-      stmt.run(eventId, dateStr, targetTime, now);
+  // Rule 1: Immediate notification (today) - always add
+  notificationDates.add(todayStr);
+
+  // Rule 6: Target date (final reminder) - always add if not in the past
+  const targetStr = target.toISOString().split('T')[0];
+  if (targetStr >= todayStr) {
+    notificationDates.add(targetStr);
+  }
+
+  // Calculate days from today to target
+  const totalDays = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (totalDays > 0) {
+    // Iterate from today to target and determine which days to notify
+    for (let daysFromNow = 1; daysFromNow < totalDays; daysFromNow++) {
+      const notifyDate = new Date(today);
+      notifyDate.setDate(notifyDate.getDate() + daysFromNow);
+      const daysRemaining = totalDays - daysFromNow;
+
+      let shouldNotify = false;
+
+      if (daysRemaining > 30) {
+        // Rule 2: Every 30 days when > 30 days remaining
+        // Notify on days where daysRemaining is a multiple of 30
+        shouldNotify = daysRemaining % 30 === 0;
+      } else if (daysRemaining > 7) {
+        // Rule 3: Every 7 days when 8-30 days remaining
+        shouldNotify = daysRemaining % 7 === 0;
+      } else if (daysRemaining > 3) {
+        // Rule 4: Every 3 days when 4-7 days remaining
+        shouldNotify = daysRemaining % 3 === 0;
+      } else {
+        // Rule 5: Daily when <= 3 days remaining
+        shouldNotify = true;
+      }
+
+      if (shouldNotify) {
+        const dateStr = notifyDate.toISOString().split('T')[0];
+        notificationDates.add(dateStr);
+      }
     }
+  }
+
+  // Insert all notification records
+  const sortedDates = Array.from(notificationDates).sort();
+  for (const dateStr of sortedDates) {
+    stmt.run(eventId, dateStr, targetTime, now);
   }
 }
 

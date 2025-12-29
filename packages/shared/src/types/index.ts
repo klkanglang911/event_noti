@@ -48,7 +48,7 @@ export interface CreateEventInput {
   content?: string;
   targetDate: string;
   targetTime?: string; // HH:MM, defaults to 09:00
-  remindDays: number;
+  remindDays?: number; // Deprecated: now using smart notification rules
   messageFormat?: MessageFormat; // defaults to 'text'
   groupId?: number;
 }
