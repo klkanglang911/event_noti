@@ -66,7 +66,7 @@ export function createEvent(req: Request, res: Response): void {
     res.status(400).json({
       error: {
         code: ERROR_CODES.VALIDATION_ERROR,
-        message: parseResult.error.errors[0].message,
+        message: parseResult.error.issues[0].message,
       },
       success: false,
     });
@@ -107,7 +107,7 @@ export function updateEvent(req: Request, res: Response): void {
     res.status(400).json({
       error: {
         code: ERROR_CODES.VALIDATION_ERROR,
-        message: parseResult.error.errors[0].message,
+        message: parseResult.error.issues[0].message,
       },
       success: false,
     });

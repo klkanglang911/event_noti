@@ -19,7 +19,13 @@
       "Bash(dir /b D:WORKAI_WORKevent_notipackageswebsrc)",
       "Bash(dir /b \"D:\\\\WORK\\\\AI_WORK\\\\event_noti\")",
       "Bash(git init:*)",
-      "Bash(git remote:*)"
+      "Bash(git remote:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: EventNoti 事件通知管理平台初始版本\n\n功能特性:\n- 事件管理 \\(创建/编辑/删除/分组\\)\n- 企业微信 Webhook 通知集成\n- 多用户支持 \\(管理员/普通用户\\)\n- 智能提醒 \\(1-30 天提前通知\\)\n- 通知历史记录和重试\n\n技术栈:\n- 前端: React 18 + Vite 5 + Tailwind CSS\n- 后端: Express 5 + better-sqlite3\n- 认证: JWT\n- 定时: node-cron\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(find:*)",
+      "Bash(pnpm --filter server build:*)",
+      "Bash(git add:*)"
     ]
   }
 }

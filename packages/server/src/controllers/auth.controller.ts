@@ -19,7 +19,7 @@ export async function login(req: Request, res: Response): Promise<void> {
       res.status(400).json({
         error: {
           code: ERROR_CODES.VALIDATION_ERROR,
-          message: parseResult.error.errors[0].message,
+          message: parseResult.error.issues[0].message,
         },
         success: false,
       });
