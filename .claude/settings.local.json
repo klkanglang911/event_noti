@@ -25,7 +25,10 @@
       "Bash(git push:*)",
       "Bash(find:*)",
       "Bash(pnpm --filter server build:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: 修复 Docker 构建问题\n\n- 使用 tsx 运行服务器替代 tsc 编译\n- 移除 docker-compose.yml 的 version 属性\n- 修复 Zod 错误处理 \\(errors -> issues\\)\n- 更新 tsconfig 配置\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(pnpm --filter web build:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
