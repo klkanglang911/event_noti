@@ -19,6 +19,7 @@ export default function EventFormPage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [targetDate, setTargetDate] = useState('');
+  const [targetTime, setTargetTime] = useState('09:00');
   const [remindDays, setRemindDays] = useState(7);
   const [groupId, setGroupId] = useState<number | ''>('');
 
@@ -28,6 +29,7 @@ export default function EventFormPage() {
       setTitle(event.title);
       setContent(event.content || '');
       setTargetDate(event.targetDate);
+      setTargetTime(event.targetTime || '09:00');
       setRemindDays(event.remindDays);
       setGroupId(event.groupId || '');
     }
@@ -52,6 +54,7 @@ export default function EventFormPage() {
       title: title.trim(),
       content: content.trim() || undefined,
       targetDate,
+      targetTime,
       remindDays,
       groupId: groupId || undefined,
     };
@@ -143,6 +146,22 @@ export default function EventFormPage() {
             disabled={isLoading}
           />
           <p className="text-sm text-gray-500 mt-1">事件的截止或目标日期</p>
+        </div>
+
+        {/* Target Time */}
+        <div>
+          <label htmlFor="targetTime" className="label">
+            通知时间
+          </label>
+          <input
+            id="targetTime"
+            type="time"
+            value={targetTime}
+            onChange={(e) => setTargetTime(e.target.value)}
+            className="input w-32"
+            disabled={isLoading}
+          />
+          <p className="text-sm text-gray-500 mt-1">在指定时间发送提醒通知</p>
         </div>
 
         {/* Remind Days */}

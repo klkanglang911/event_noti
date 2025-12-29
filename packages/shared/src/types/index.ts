@@ -28,6 +28,7 @@ export interface Event {
   title: string;
   content: string | null;
   targetDate: string; // YYYY-MM-DD
+  targetTime: string; // HH:MM
   remindDays: number;
   groupId: number | null;
   userId: number;
@@ -43,6 +44,7 @@ export interface CreateEventInput {
   title: string;
   content?: string;
   targetDate: string;
+  targetTime?: string; // HH:MM, defaults to 09:00
   remindDays: number;
   groupId?: number;
 }
@@ -51,6 +53,7 @@ export interface UpdateEventInput {
   title?: string;
   content?: string;
   targetDate?: string;
+  targetTime?: string;
   remindDays?: number;
   groupId?: number | null;
   status?: 'active' | 'expired' | 'completed';
@@ -110,6 +113,7 @@ export interface Notification {
   id: number;
   eventId: number;
   scheduledDate: string;
+  scheduledTime: string; // HH:MM
   sentAt: string | null;
   status: 'pending' | 'sent' | 'failed';
   errorMessage: string | null;

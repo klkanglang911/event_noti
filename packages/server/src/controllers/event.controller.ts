@@ -8,6 +8,7 @@ const createEventSchema = z.object({
   title: z.string().min(1, '标题不能为空').max(100),
   content: z.string().max(500).optional(),
   targetDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式无效'),
+  targetTime: z.string().regex(/^\d{2}:\d{2}$/, '时间格式无效').default('09:00'),
   remindDays: z.number().int().min(0).max(365).default(DEFAULTS.REMIND_DAYS),
   groupId: z.number().int().positive().optional(),
 });
@@ -16,6 +17,7 @@ const updateEventSchema = z.object({
   title: z.string().min(1).max(100).optional(),
   content: z.string().max(500).optional().nullable(),
   targetDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  targetTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   remindDays: z.number().int().min(0).max(365).optional(),
   groupId: z.number().int().positive().optional().nullable(),
   status: z.enum(['active', 'expired', 'completed']).optional(),

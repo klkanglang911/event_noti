@@ -5,6 +5,7 @@ interface NotificationRow {
   id: number;
   event_id: number;
   scheduled_date: string;
+  scheduled_time: string;
   sent_at: string | null;
   status: 'pending' | 'sent' | 'failed';
   error_message: string | null;
@@ -14,6 +15,7 @@ interface NotificationRow {
   event_title?: string;
   event_content?: string | null;
   event_target_date?: string;
+  event_target_time?: string;
   event_user_id?: number;
 }
 
@@ -23,6 +25,7 @@ function rowToNotification(row: NotificationRow): Notification {
     id: row.id,
     eventId: row.event_id,
     scheduledDate: row.scheduled_date,
+    scheduledTime: row.scheduled_time || '09:00',
     sentAt: row.sent_at,
     status: row.status,
     errorMessage: row.error_message,
@@ -36,6 +39,7 @@ function rowToNotification(row: NotificationRow): Notification {
       title: row.event_title,
       content: row.event_content || null,
       targetDate: row.event_target_date || '',
+      targetTime: row.event_target_time || '09:00',
       remindDays: 0,
       groupId: null,
       userId: row.event_user_id || 0,
@@ -94,12 +98,26 @@ export function findByUserId(
 export function findPendingByDate(date: string): Notification[] {
   const rows = db.prepare(`
     SELECT n.*, e.title as event_title, e.content as event_content,
-           e.target_date as event_target_date, e.user_id as event_user_id
+           e.target_date as event_target_date, e.target_time as event_target_time, e.user_id as event_user_id
     FROM notifications n
     INNER JOIN events e ON n.event_id = e.id
     WHERE n.scheduled_date = ? AND n.status = 'pending'
-    ORDER BY e.target_date ASC
+    ORDER BY n.scheduled_time ASC, e.target_date ASC
   `).all(date) as NotificationRow[];
+
+  return rows.map(rowToNotification);
+}
+
+// Find pending notifications for a specific date and time (for minute-level scheduling)
+export function findPendingByDateTime(date: string, time: string): Notification[] {
+  const rows = db.prepare(`
+    SELECT n.*, e.title as event_title, e.content as event_content,
+           e.target_date as event_target_date, e.target_time as event_target_time, e.user_id as event_user_id
+    FROM notifications n
+    INNER JOIN events e ON n.event_id = e.id
+    WHERE n.scheduled_date = ? AND n.scheduled_time = ? AND n.status = 'pending'
+    ORDER BY e.target_date ASC
+  `).all(date, time) as NotificationRow[];
 
   return rows.map(rowToNotification);
 }
@@ -118,13 +136,13 @@ export function findById(id: number): Notification | null {
 }
 
 // Generate notification records for an event
-export function generateForEvent(eventId: number, targetDate: string, remindDays: number): void {
+export function generateForEvent(eventId: number, targetDate: string, remindDays: number, targetTime: string = '09:00'): void {
   const now = getCurrentTimestamp();
   const target = new Date(targetDate);
 
   const stmt = db.prepare(`
-    INSERT INTO notifications (event_id, scheduled_date, created_at)
-    VALUES (?, ?, ?)
+    INSERT INTO notifications (event_id, scheduled_date, scheduled_time, created_at)
+    VALUES (?, ?, ?, ?)
   `);
 
   // Generate notifications from (targetDate - remindDays) to targetDate
@@ -136,7 +154,7 @@ export function generateForEvent(eventId: number, targetDate: string, remindDays
     // Only create notifications for today or future dates
     const today = new Date().toISOString().split('T')[0];
     if (dateStr >= today) {
-      stmt.run(eventId, dateStr, now);
+      stmt.run(eventId, dateStr, targetTime, now);
     }
   }
 }

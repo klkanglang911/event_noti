@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS events (
     title TEXT NOT NULL,
     content TEXT,
     target_date DATE NOT NULL,
+    target_time TEXT DEFAULT '09:00',  -- 通知时间，格式 HH:MM
     remind_days INTEGER DEFAULT 7,
     group_id INTEGER REFERENCES groups(id) ON DELETE SET NULL,
     user_id INTEGER NOT NULL REFERENCES users(id),
@@ -54,6 +55,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
     scheduled_date DATE NOT NULL,
+    scheduled_time TEXT DEFAULT '09:00',  -- 通知时间，格式 HH:MM
     sent_at DATETIME,
     status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'sent', 'failed')),
     error_message TEXT,

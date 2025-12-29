@@ -7,6 +7,7 @@ interface EventRow {
   title: string;
   content: string | null;
   target_date: string;
+  target_time: string;
   remind_days: number;
   group_id: number | null;
   user_id: number;
@@ -31,6 +32,7 @@ function rowToEvent(row: EventRow): Event {
     title: row.title,
     content: row.content,
     targetDate: row.target_date,
+    targetTime: row.target_time || '09:00',
     remindDays: row.remind_days,
     groupId: row.group_id,
     userId: row.user_id,
@@ -92,14 +94,16 @@ export function findById(id: number): Event | null {
 export function create(userId: number, input: CreateEventInput): Event {
   return transaction(() => {
     const now = getCurrentTimestamp();
+    const targetTime = input.targetTime || '09:00';
 
     const result = db.prepare(`
-      INSERT INTO events (title, content, target_date, remind_days, group_id, user_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO events (title, content, target_date, target_time, remind_days, group_id, user_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       input.title,
       input.content || null,
       input.targetDate,
+      targetTime,
       input.remindDays,
       input.groupId || null,
       userId,
@@ -110,7 +114,7 @@ export function create(userId: number, input: CreateEventInput): Event {
     const eventId = result.lastInsertRowid as number;
 
     // Generate notification records
-    notificationModel.generateForEvent(eventId, input.targetDate, input.remindDays);
+    notificationModel.generateForEvent(eventId, input.targetDate, input.remindDays, targetTime);
 
     return findById(eventId)!;
   });
@@ -139,6 +143,11 @@ export function update(id: number, input: UpdateEventInput): Event | null {
       values.push(input.targetDate);
       needRegenerateNotifications = true;
     }
+    if (input.targetTime !== undefined) {
+      updates.push('target_time = ?');
+      values.push(input.targetTime);
+      needRegenerateNotifications = true;
+    }
     if (input.remindDays !== undefined) {
       updates.push('remind_days = ?');
       values.push(input.remindDays);
@@ -161,11 +170,11 @@ export function update(id: number, input: UpdateEventInput): Event | null {
 
     db.prepare(`UPDATE events SET ${updates.join(', ')} WHERE id = ?`).run(...values);
 
-    // Regenerate notifications if date or remind_days changed
+    // Regenerate notifications if date, time or remind_days changed
     if (needRegenerateNotifications) {
       const updatedEvent = findById(id)!;
       notificationModel.deleteByEventId(id);
-      notificationModel.generateForEvent(id, updatedEvent.targetDate, updatedEvent.remindDays);
+      notificationModel.generateForEvent(id, updatedEvent.targetDate, updatedEvent.remindDays, updatedEvent.targetTime);
     }
 
     return findById(id);

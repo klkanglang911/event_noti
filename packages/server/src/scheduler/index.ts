@@ -6,7 +6,8 @@ import * as webhookModel from '../models/webhookModel.ts';
 import * as webhookService from '../services/webhookService.ts';
 
 // Configuration from environment
-const NOTIFICATION_CRON = process.env.NOTIFICATION_CRON || '0 9 * * *'; // Default: 9:00 AM daily
+// Check every minute for scheduled notifications
+const NOTIFICATION_CRON = process.env.NOTIFICATION_CRON || '* * * * *'; // Default: every minute
 const RETRY_CRON = process.env.RETRY_CRON || '*/5 * * * *'; // Default: every 5 minutes
 const MAX_RETRIES = 3;
 
@@ -78,10 +79,44 @@ async function sendNotification(notificationId: number): Promise<boolean> {
   }
 }
 
-// Process all pending notifications for today
+// Process notifications scheduled for current minute
+async function processScheduledNotifications(): Promise<void> {
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+  const currentTime = now.toTimeString().substring(0, 5); // HH:MM format
+
+  console.log(`[Scheduler] Checking notifications for ${today} ${currentTime}`);
+
+  const pendingNotifications = notificationModel.findPendingByDateTime(today, currentTime);
+
+  if (pendingNotifications.length === 0) {
+    return; // No notifications for this minute
+  }
+
+  console.log(`[Scheduler] Found ${pendingNotifications.length} notifications to send`);
+
+  let successCount = 0;
+  let failCount = 0;
+
+  for (const notification of pendingNotifications) {
+    const success = await sendNotification(notification.id);
+    if (success) {
+      successCount++;
+    } else {
+      failCount++;
+    }
+
+    // Small delay between notifications to avoid rate limiting
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  console.log(`[Scheduler] Processing complete: ${successCount} sent, ${failCount} failed`);
+}
+
+// Process all pending notifications for today (legacy function for compatibility)
 async function processDailyNotifications(): Promise<void> {
   const today = new Date().toISOString().split('T')[0];
-  console.log(`[Scheduler] Processing notifications for ${today}`);
+  console.log(`[Scheduler] Processing all pending notifications for ${today}`);
 
   const pendingNotifications = notificationModel.findPendingByDate(today);
   console.log(`[Scheduler] Found ${pendingNotifications.length} pending notifications`);
@@ -135,7 +170,7 @@ async function retryFailedNotifications(): Promise<void> {
 // Start the scheduler
 export function startScheduler(): void {
   console.log(`[Scheduler] Starting notification scheduler`);
-  console.log(`[Scheduler] Daily schedule: ${NOTIFICATION_CRON}`);
+  console.log(`[Scheduler] Notification schedule: ${NOTIFICATION_CRON} (every minute)`);
   console.log(`[Scheduler] Retry schedule: ${RETRY_CRON}`);
 
   // Validate cron expressions
@@ -149,13 +184,12 @@ export function startScheduler(): void {
     return;
   }
 
-  // Schedule daily notification job
+  // Schedule minute-level notification job
   notificationTask = cron.schedule(NOTIFICATION_CRON, async () => {
-    console.log(`[Scheduler] Daily notification job triggered`);
     try {
-      await processDailyNotifications();
+      await processScheduledNotifications();
     } catch (error) {
-      console.error(`[Scheduler] Daily notification job error:`, error);
+      console.error(`[Scheduler] Notification job error:`, error);
     }
   });
 
