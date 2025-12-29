@@ -60,6 +60,20 @@ function runMigrations(): void {
     db.exec("ALTER TABLE events ADD COLUMN message_format TEXT DEFAULT 'text'");
     console.log('✅ Migration: Added message_format column to events');
   }
+
+  // Migration 4: Create settings table if not exists
+  const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='settings'").get();
+  if (!tables) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    db.exec("INSERT OR IGNORE INTO settings (key, value) VALUES ('timezone', 'Asia/Shanghai')");
+    console.log('✅ Migration: Created settings table with default timezone');
+  }
 }
 
 // Seed default admin user

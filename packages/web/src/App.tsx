@@ -16,6 +16,7 @@ import GroupListPage from '@/pages/GroupListPage';
 import NotificationHistoryPage from '@/pages/NotificationHistoryPage';
 import WebhookListPage from '@/pages/WebhookListPage';
 import UserListPage from '@/pages/UserListPage';
+import SettingsPage from '@/pages/SettingsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -65,6 +66,14 @@ function App() {
               element={
                 <ProtectedRoute requireAdmin>
                   <UserListPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <SettingsPage />
                 </ProtectedRoute>
               }
             />

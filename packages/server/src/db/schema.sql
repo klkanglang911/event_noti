@@ -74,3 +74,13 @@ CREATE INDEX IF NOT EXISTS idx_groups_user_id ON groups(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_scheduled_date ON notifications(scheduled_date);
 CREATE INDEX IF NOT EXISTS idx_notifications_status ON notifications(status);
 CREATE INDEX IF NOT EXISTS idx_notifications_event_id ON notifications(event_id);
+
+-- 系统设置表
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 默认设置
+INSERT OR IGNORE INTO settings (key, value) VALUES ('timezone', 'Asia/Shanghai');

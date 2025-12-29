@@ -12,6 +12,7 @@ import {
   LogOut,
   User,
   LayoutDashboard,
+  Settings,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -26,6 +27,7 @@ const navItems = [
 const adminNavItems = [
   { path: '/webhooks', label: 'Webhook', icon: Webhook },
   { path: '/users', label: '用户管理', icon: Users },
+  { path: '/settings', label: '系统设置', icon: Settings },
 ];
 
 export default function MainLayout() {

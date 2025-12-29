@@ -4,6 +4,7 @@ import * as eventModel from '../models/eventModel.ts';
 import * as groupModel from '../models/groupModel.ts';
 import * as webhookModel from '../models/webhookModel.ts';
 import * as webhookService from '../services/webhookService.ts';
+import * as settingsService from '../services/settingsService.ts';
 
 // Configuration from environment
 // Check every minute for scheduled notifications
@@ -52,8 +53,9 @@ async function sendNotification(notificationId: number): Promise<boolean> {
     return false;
   }
 
-  // Calculate days remaining
-  const today = new Date();
+  // Calculate days remaining using configured timezone
+  const { date: todayStr } = settingsService.getCurrentTimeInTimezone();
+  const today = new Date(todayStr);
   today.setHours(0, 0, 0, 0);
   const targetDate = new Date(event.targetDate);
   const daysRemaining = Math.ceil((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
@@ -82,11 +84,11 @@ async function sendNotification(notificationId: number): Promise<boolean> {
 
 // Process notifications scheduled for current minute
 async function processScheduledNotifications(): Promise<void> {
-  const now = new Date();
-  const today = now.toISOString().split('T')[0];
-  const currentTime = now.toTimeString().substring(0, 5); // HH:MM format
+  // Use configured timezone for time calculation
+  const { date: today, time: currentTime } = settingsService.getCurrentTimeInTimezone();
+  const timezone = settingsService.getTimezone();
 
-  console.log(`[Scheduler] Checking notifications for ${today} ${currentTime}`);
+  console.log(`[Scheduler] Checking notifications for ${today} ${currentTime} (${timezone})`);
 
   const pendingNotifications = notificationModel.findPendingByDateTime(today, currentTime);
 
@@ -116,7 +118,7 @@ async function processScheduledNotifications(): Promise<void> {
 
 // Process all pending notifications for today (legacy function for compatibility)
 async function processDailyNotifications(): Promise<void> {
-  const today = new Date().toISOString().split('T')[0];
+  const { date: today } = settingsService.getCurrentTimeInTimezone();
   console.log(`[Scheduler] Processing all pending notifications for ${today}`);
 
   const pendingNotifications = notificationModel.findPendingByDate(today);
@@ -170,7 +172,12 @@ async function retryFailedNotifications(): Promise<void> {
 
 // Start the scheduler
 export function startScheduler(): void {
+  const timezone = settingsService.getTimezone();
+  const { datetime } = settingsService.getCurrentTimeInTimezone();
+
   console.log(`[Scheduler] Starting notification scheduler`);
+  console.log(`[Scheduler] Timezone: ${timezone}`);
+  console.log(`[Scheduler] Current time: ${datetime}`);
   console.log(`[Scheduler] Notification schedule: ${NOTIFICATION_CRON} (every minute)`);
   console.log(`[Scheduler] Retry schedule: ${RETRY_CRON}`);
 

@@ -170,3 +170,13 @@ export interface PaginatedResponse<T> {
   };
   success: true;
 }
+
+// Settings types
+export interface SystemSettings {
+  timezone: string;
+  currentTime?: string;
+}
+
+export interface UpdateTimezoneInput {
+  timezone: string;
+}
