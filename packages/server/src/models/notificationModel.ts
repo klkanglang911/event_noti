@@ -1,5 +1,6 @@
 import db, { getCurrentTimestamp } from '../db/index.ts';
 import type { Notification } from '@event-noti/shared';
+import * as settingsService from '../services/settingsService.ts';
 
 interface NotificationRow {
   id: number;
@@ -145,14 +146,16 @@ export function generateForEvent(eventId: number, targetDate: string, remindDays
     VALUES (?, ?, ?, ?)
   `);
 
+  // Get today's date in configured timezone
+  const today = settingsService.getTodayInTimezone();
+
   // Generate notifications from (targetDate - remindDays) to targetDate
   for (let i = remindDays; i >= 0; i--) {
     const date = new Date(target);
     date.setDate(date.getDate() - i);
     const dateStr = date.toISOString().split('T')[0];
 
-    // Only create notifications for today or future dates
-    const today = new Date().toISOString().split('T')[0];
+    // Only create notifications for today or future dates (using timezone-aware today)
     if (dateStr >= today) {
       stmt.run(eventId, dateStr, targetTime, now);
     }
@@ -198,7 +201,8 @@ export function resetForRetry(id: number): void {
 
 // Get failed notifications that can be retried
 export function findFailedForRetry(maxRetries: number = 3): Notification[] {
-  const today = new Date().toISOString().split('T')[0];
+  // Use timezone-aware today
+  const today = settingsService.getTodayInTimezone();
 
   const rows = db.prepare(`
     SELECT n.*, e.title as event_title, e.content as event_content,

@@ -64,7 +64,7 @@ export function getCurrentTimeInTimezone(): { date: string; time: string; dateti
   const timezone = getTimezone();
   const now = new Date();
 
-  // Format date as YYYY-MM-DD
+  // Format date as YYYY-MM-DD using sv-SE locale (ISO format)
   const dateFormatter = new Intl.DateTimeFormat('sv-SE', {
     timeZone: timezone,
     year: 'numeric',
@@ -72,7 +72,7 @@ export function getCurrentTimeInTimezone(): { date: string; time: string; dateti
     day: '2-digit',
   });
 
-  // Format time as HH:MM
+  // Format time - manually construct HH:MM to ensure zero-padding
   const timeFormatter = new Intl.DateTimeFormat('en-GB', {
     timeZone: timezone,
     hour: '2-digit',
@@ -81,8 +81,20 @@ export function getCurrentTimeInTimezone(): { date: string; time: string; dateti
   });
 
   const date = dateFormatter.format(now);
-  const time = timeFormatter.format(now);
+
+  // Parse and re-format time to ensure HH:MM format with zero-padding
+  const timeParts = timeFormatter.formatToParts(now);
+  const hour = timeParts.find(p => p.type === 'hour')?.value || '00';
+  const minute = timeParts.find(p => p.type === 'minute')?.value || '00';
+  const time = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
+
   const datetime = `${date} ${time}`;
 
   return { date, time, datetime };
+}
+
+// Get today's date in configured timezone (YYYY-MM-DD format)
+export function getTodayInTimezone(): string {
+  const { date } = getCurrentTimeInTimezone();
+  return date;
 }

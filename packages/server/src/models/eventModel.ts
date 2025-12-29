@@ -1,6 +1,7 @@
 import db, { getCurrentTimestamp, transaction } from '../db/index.ts';
 import type { Event, CreateEventInput, UpdateEventInput } from '@event-noti/shared';
 import * as notificationModel from './notificationModel.ts';
+import * as settingsService from '../services/settingsService.ts';
 
 interface EventRow {
   id: number;
@@ -23,7 +24,9 @@ interface EventRow {
 
 // Convert database row to Event type
 function rowToEvent(row: EventRow): Event {
-  const today = new Date();
+  // Use timezone-aware today for daysRemaining calculation
+  const todayStr = settingsService.getTodayInTimezone();
+  const today = new Date(todayStr);
   today.setHours(0, 0, 0, 0);
   const targetDate = new Date(row.target_date);
   const daysRemaining = Math.ceil((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
@@ -197,7 +200,8 @@ export function remove(id: number): boolean {
 
 // Update expired events
 export function markExpired(): number {
-  const today = new Date().toISOString().split('T')[0];
+  // Use timezone-aware today
+  const today = settingsService.getTodayInTimezone();
   const result = db.prepare(`
     UPDATE events
     SET status = 'expired', updated_at = ?
@@ -209,7 +213,8 @@ export function markExpired(): number {
 
 // Get events with upcoming notifications for today
 export function findWithTodayNotifications(): Event[] {
-  const today = new Date().toISOString().split('T')[0];
+  // Use timezone-aware today
+  const today = settingsService.getTodayInTimezone();
 
   const rows = db.prepare(`
     SELECT DISTINCT e.*, g.name as group_name, g.color as group_color, g.webhook_id

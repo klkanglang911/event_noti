@@ -31,7 +31,10 @@
       "Bash(git commit:*)",
       "mcp__Playwright__browser_navigate",
       "Bash(cd:*)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(git -C D:WORKAI_WORKevent_noti status)",
+      "Bash(git -C D:WORKAI_WORKevent_noti log -3 --oneline)",
+      "Bash(cat:*)"
     ]
   }
 }
