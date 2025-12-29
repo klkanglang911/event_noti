@@ -155,7 +155,8 @@ export function transaction<T>(fn: () => T): T {
   return db.transaction(fn)();
 }
 
-// Helper for getting current timestamp
+// Helper for getting current timestamp (ISO format with timezone indicator)
 export function getCurrentTimestamp(): string {
-  return new Date().toISOString().replace('T', ' ').substring(0, 19);
+  // Return ISO format with 'Z' suffix so frontend can correctly parse as UTC
+  return new Date().toISOString();
 }

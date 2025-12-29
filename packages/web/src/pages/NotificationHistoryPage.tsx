@@ -99,10 +99,31 @@ function StatsCard({
   );
 }
 
-// Format date for display
-function formatDate(dateStr: string | null) {
+// Format date-only for display (e.g., "2025-12-29")
+function formatScheduledDate(dateStr: string | null, timeStr?: string) {
   if (!dateStr) return '-';
-  const date = new Date(dateStr);
+
+  // scheduledDate is just a date string like "2025-12-29"
+  // Combine with scheduledTime if available
+  const displayTime = timeStr || '09:00';
+  return `${dateStr} ${displayTime}`;
+}
+
+// Format datetime for display (handles both ISO and legacy formats)
+function formatSentAt(dateStr: string | null) {
+  if (!dateStr) return '-';
+
+  let date: Date;
+
+  // Check if it's ISO format with timezone (has 'T' and 'Z' or timezone offset)
+  if (dateStr.includes('T')) {
+    date = new Date(dateStr);
+  } else {
+    // Legacy format without timezone - assume UTC and add 'Z' suffix
+    // Convert "2025-12-29 06:30:00" to "2025-12-29T06:30:00Z"
+    date = new Date(dateStr.replace(' ', 'T') + 'Z');
+  }
+
   return date.toLocaleString('zh-CN', {
     year: 'numeric',
     month: '2-digit',
@@ -212,10 +233,10 @@ export default function NotificationHistoryPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      {formatDate(notification.scheduledDate)}
+                      {formatScheduledDate(notification.scheduledDate, notification.scheduledTime)}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      {formatDate(notification.sentAt)}
+                      {formatSentAt(notification.sentAt)}
                     </td>
                     <td className="px-6 py-4">
                       <StatusBadge status={notification.status} />
