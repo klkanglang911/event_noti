@@ -53,14 +53,13 @@ WORKDIR /app
 # Install build dependencies for better-sqlite3
 RUN apk add --no-cache python3 make g++
 
-# Copy root package files
+# Copy ALL package files (including root)
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
-
-# Copy package files
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/server/package.json ./packages/server/
+COPY packages/web/package.json ./packages/web/
 
-# Install all dependencies (tsx is now a production dependency)
+# Install all dependencies
 RUN pnpm install --frozen-lockfile
 
 # Remove build dependencies to reduce image size
@@ -72,6 +71,7 @@ COPY packages/shared/src ./packages/shared/src
 
 # Copy server source (will run with tsx)
 COPY packages/server/src ./packages/server/src
+COPY packages/server/tsconfig.json ./packages/server/
 
 # Copy web build output
 COPY --from=web-builder /app/packages/web/dist ./packages/web/dist
@@ -92,4 +92,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
 # Start the server with tsx
-CMD ["node", "--import", "tsx", "packages/server/src/index.ts"]
+WORKDIR /app/packages/server
+CMD ["npx", "tsx", "src/index.ts"]
