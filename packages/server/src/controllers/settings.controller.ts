@@ -2,6 +2,8 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 import * as settingsService from '../services/settingsService.ts';
 import { ERROR_CODES } from '@event-noti/shared';
+import { startScheduler } from '../scheduler/index.ts';
+import { startExpireScheduler } from '../scheduler/expireEvents.ts';
 
 // Validation schema
 const updateTimezoneSchema = z.object({
@@ -48,6 +50,11 @@ export function updateTimezone(req: Request, res: Response): void {
 
   try {
     const settings = settingsService.updateTimezone(parseResult.data.timezone);
+
+    // Restart schedulers so timezone change takes effect immediately
+    startScheduler();
+    startExpireScheduler();
+
     const currentTime = settingsService.getCurrentTimeInTimezone();
 
     res.json({

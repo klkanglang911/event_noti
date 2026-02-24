@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import * as eventModel from '../models/eventModel.ts';
+import * as settingsService from '../services/settingsService.ts';
 
 // Configuration from environment
 const EXPIRE_CRON = process.env.EXPIRE_CRON || '5 9 * * *'; // Default: 9:05 AM daily (after notifications)
@@ -22,8 +23,11 @@ function processExpiredEvents(): void {
 
 // Start the expire events scheduler
 export function startExpireScheduler(): void {
+  const timezone = settingsService.getTimezone();
+
   console.log(`[ExpireEvents] Starting expire events scheduler`);
   console.log(`[ExpireEvents] Schedule: ${EXPIRE_CRON}`);
+  console.log(`[ExpireEvents] Timezone: ${timezone}`);
 
   // Validate cron expression
   if (!cron.validate(EXPIRE_CRON)) {
@@ -31,15 +35,25 @@ export function startExpireScheduler(): void {
     return;
   }
 
+  // Prevent duplicate tasks when restarting scheduler
+  if (expireTask) {
+    expireTask.stop();
+    expireTask = null;
+  }
+
   // Schedule expire job
-  expireTask = cron.schedule(EXPIRE_CRON, () => {
-    console.log(`[ExpireEvents] Expire job triggered`);
-    try {
-      processExpiredEvents();
-    } catch (error) {
-      console.error(`[ExpireEvents] Expire job error:`, error);
-    }
-  });
+  expireTask = cron.schedule(
+    EXPIRE_CRON,
+    () => {
+      console.log(`[ExpireEvents] Expire job triggered`);
+      try {
+        processExpiredEvents();
+      } catch (error) {
+        console.error(`[ExpireEvents] Expire job error:`, error);
+      }
+    },
+    { timezone }
+  );
 
   console.log(`[ExpireEvents] Scheduler started successfully`);
 }

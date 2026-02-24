@@ -192,23 +192,41 @@ export function startScheduler(): void {
     return;
   }
 
+  // Prevent duplicate tasks when restarting scheduler
+  if (notificationTask) {
+    notificationTask.stop();
+    notificationTask = null;
+  }
+  if (retryTask) {
+    retryTask.stop();
+    retryTask = null;
+  }
+
   // Schedule minute-level notification job
-  notificationTask = cron.schedule(NOTIFICATION_CRON, async () => {
-    try {
-      await processScheduledNotifications();
-    } catch (error) {
-      console.error(`[Scheduler] Notification job error:`, error);
-    }
-  });
+  notificationTask = cron.schedule(
+    NOTIFICATION_CRON,
+    async () => {
+      try {
+        await processScheduledNotifications();
+      } catch (error) {
+        console.error(`[Scheduler] Notification job error:`, error);
+      }
+    },
+    { timezone }
+  );
 
   // Schedule retry job
-  retryTask = cron.schedule(RETRY_CRON, async () => {
-    try {
-      await retryFailedNotifications();
-    } catch (error) {
-      console.error(`[Scheduler] Retry job error:`, error);
-    }
-  });
+  retryTask = cron.schedule(
+    RETRY_CRON,
+    async () => {
+      try {
+        await retryFailedNotifications();
+      } catch (error) {
+        console.error(`[Scheduler] Retry job error:`, error);
+      }
+    },
+    { timezone }
+  );
 
   console.log(`[Scheduler] Scheduler started successfully`);
 }
