@@ -93,10 +93,9 @@ function runMigrations(): void {
     console.log('✅ Migration: Created settings table with default timezone');
   }
 
-  // Migration 5: Create user_groups table and migrate groups.user_id to created_by
+  // Migration 5: Ensure user_groups table exists
   const userGroupsTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='user_groups'").get();
   if (!userGroupsTable) {
-    // Create user_groups table
     db.exec(`
       CREATE TABLE IF NOT EXISTS user_groups (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -110,26 +109,34 @@ function runMigrations(): void {
     db.exec('CREATE INDEX IF NOT EXISTS idx_user_groups_user_id ON user_groups(user_id)');
     db.exec('CREATE INDEX IF NOT EXISTS idx_user_groups_group_id ON user_groups(group_id)');
     console.log('✅ Migration: Created user_groups table');
+  }
 
-    // Check if groups table has user_id column (old schema)
-    const groupsInfo = db.prepare("PRAGMA table_info(groups)").all() as { name: string }[];
-    const hasUserId = groupsInfo.some((col) => col.name === 'user_id');
-    const hasCreatedBy = groupsInfo.some((col) => col.name === 'created_by');
+  // Migration 5.1: Ensure groups.created_by exists and sync legacy groups.user_id data
+  const groupsInfoForMigration = db.prepare("PRAGMA table_info(groups)").all() as { name: string }[];
+  const hasUserId = groupsInfoForMigration.some((col) => col.name === 'user_id');
+  const hasCreatedBy = groupsInfoForMigration.some((col) => col.name === 'created_by');
 
-    if (hasUserId && !hasCreatedBy) {
-      // Migrate: copy user_id to user_groups, then rename column
-      // First, assign existing groups to their creators
-      db.exec(`
-        INSERT OR IGNORE INTO user_groups (user_id, group_id, assigned_by, assigned_at)
-        SELECT user_id, id, user_id, created_at FROM groups WHERE user_id IS NOT NULL
-      `);
-      console.log('✅ Migration: Migrated existing group assignments to user_groups');
+  if (!hasCreatedBy) {
+    db.exec('ALTER TABLE groups ADD COLUMN created_by INTEGER REFERENCES users(id)');
+    console.log('✅ Migration: Added created_by column to groups');
+  }
 
-      // Add created_by column if not exists
-      db.exec('ALTER TABLE groups ADD COLUMN created_by INTEGER REFERENCES users(id)');
-      // Copy user_id to created_by
-      db.exec('UPDATE groups SET created_by = user_id WHERE created_by IS NULL');
-      console.log('✅ Migration: Added created_by column to groups');
+  if (hasUserId) {
+    const backfillCreatedBy = db.prepare(`
+      UPDATE groups
+      SET created_by = user_id
+      WHERE created_by IS NULL AND user_id IS NOT NULL
+    `).run();
+
+    const syncAssignments = db.prepare(`
+      INSERT OR IGNORE INTO user_groups (user_id, group_id, assigned_by, assigned_at)
+      SELECT user_id, id, user_id, created_at FROM groups WHERE user_id IS NOT NULL
+    `).run();
+
+    if (backfillCreatedBy.changes > 0 || syncAssignments.changes > 0) {
+      console.log(
+        `✅ Migration: Synced legacy group ownership data (created_by: ${backfillCreatedBy.changes}, assignments: ${syncAssignments.changes})`
+      );
     }
   }
 
