@@ -101,9 +101,9 @@ export function create(createdBy: number, input: CreateGroupInput): Group {
   const color = input.color || '#3B82F6';
 
   const result = db.prepare(`
-    INSERT INTO groups (name, color, webhook_id, created_by, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(input.name, color, input.webhookId || null, createdBy, now, now);
+    INSERT INTO groups (name, color, webhook_id, user_id, created_by, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(input.name, color, input.webhookId || null, createdBy, createdBy, now, now);
 
   return findById(result.lastInsertRowid as number)!;
 }
