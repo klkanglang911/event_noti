@@ -22,6 +22,10 @@ const db = new Database(DB_PATH);
 // Enable foreign keys
 db.pragma('foreign_keys = ON');
 
+function normalizeGroupName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
 // Initialize database schema
 function initializeDatabase(): void {
   const schemaPath = path.join(__dirname, 'schema.sql');
@@ -144,6 +148,74 @@ function runMigrations(): void {
   const groupsInfo = db.prepare("PRAGMA table_info(groups)").all() as { name: string }[];
   if (groupsInfo.some((col) => col.name === 'created_by')) {
     db.exec('CREATE INDEX IF NOT EXISTS idx_groups_created_by ON groups(created_by)');
+
+    const groupsForRename = db.prepare(`
+      SELECT id, name, created_by
+      FROM groups
+      WHERE created_by IS NOT NULL
+      ORDER BY created_by ASC, id ASC
+    `).all() as { id: number; name: string; created_by: number }[];
+
+    const seenGroupNames = new Map<string, number>();
+    const renameGroupStmt = db.prepare('UPDATE groups SET name = ?, updated_at = ? WHERE id = ?');
+    const renameTimestamp = getCurrentTimestamp();
+    let renamedCount = 0;
+
+    for (const group of groupsForRename) {
+      const ownerId = group.created_by;
+      const originalName = group.name.trim();
+      const normalizedOriginalName = normalizeGroupName(originalName);
+
+      if (!normalizedOriginalName) {
+        const fallbackBaseName = `分组-${group.id}`;
+        let candidateName = fallbackBaseName;
+        let candidateNormalized = normalizeGroupName(candidateName);
+        let suffix = 1;
+
+        while (seenGroupNames.has(`${ownerId}:${candidateNormalized}`)) {
+          candidateName = `${fallbackBaseName}-${suffix}`;
+          candidateNormalized = normalizeGroupName(candidateName);
+          suffix += 1;
+        }
+
+        renameGroupStmt.run(candidateName, renameTimestamp, group.id);
+        seenGroupNames.set(`${ownerId}:${candidateNormalized}`, 0);
+        renamedCount++;
+        continue;
+      }
+
+      const ownerScopedBaseKey = `${ownerId}:${normalizedOriginalName}`;
+
+      if (!seenGroupNames.has(ownerScopedBaseKey)) {
+        seenGroupNames.set(ownerScopedBaseKey, 0);
+        continue;
+      }
+
+      let suffix = (seenGroupNames.get(ownerScopedBaseKey) || 0) + 1;
+      let candidateName = `${originalName}-${suffix}`;
+      let candidateNormalized = normalizeGroupName(candidateName);
+
+      while (seenGroupNames.has(`${ownerId}:${candidateNormalized}`)) {
+        suffix += 1;
+        candidateName = `${originalName}-${suffix}`;
+        candidateNormalized = normalizeGroupName(candidateName);
+      }
+
+      renameGroupStmt.run(candidateName, renameTimestamp, group.id);
+      seenGroupNames.set(ownerScopedBaseKey, suffix);
+      seenGroupNames.set(`${ownerId}:${candidateNormalized}`, 0);
+      renamedCount++;
+    }
+
+    if (renamedCount > 0) {
+      console.log(`✅ Migration: Renamed ${renamedCount} duplicated groups with numeric suffixes`);
+    }
+
+    db.exec(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_groups_created_by_name_normalized
+      ON groups(created_by, lower(trim(name)))
+      WHERE created_by IS NOT NULL
+    `);
   }
 
   // Ensure user_groups indexes exist

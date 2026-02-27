@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { Calendar, Plus, Trash2, Edit, MoreVertical } from 'lucide-react';
 import { useEvents, useDeleteEvent } from '@/hooks/useEvents';
 import { useGroups } from '@/hooks/useGroups';
-import toast from 'react-hot-toast';
 import { getErrorMessage } from '@/services/api';
+import { usePrompt } from '@/components/PromptProvider';
 
 // CountdownBadge component
 function CountdownBadge({ days }: { days: number }) {
@@ -47,19 +47,21 @@ function StatusBadge({ status }: { status: string }) {
 export default function EventListPage() {
   const [selectedGroupId, setSelectedGroupId] = useState<number | undefined>();
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
+  const prompt = usePrompt();
 
   const { data: events, isLoading } = useEvents(selectedGroupId);
   const { data: groups } = useGroups();
   const deleteEvent = useDeleteEvent();
 
   const handleDelete = async (id: number, title: string) => {
-    if (!confirm(`确定要删除事件 "${title}" 吗？`)) return;
+    const confirmed = await prompt.confirm(`确定要删除事件 "${title}" 吗？`);
+    if (!confirmed) return;
 
     try {
       await deleteEvent.mutateAsync(id);
-      toast.success('事件已删除');
+      await prompt.success('事件已删除');
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      await prompt.error(getErrorMessage(error));
     }
     setMenuOpenId(null);
   };

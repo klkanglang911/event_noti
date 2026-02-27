@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { History, RefreshCw, Loader2, ChevronLeft, ChevronRight, AlertCircle, CheckCircle, Clock, Trash2, X } from 'lucide-react';
 import { useNotifications, useNotificationStats, useRetryNotification, useDeleteNotification } from '@/hooks/useNotifications';
-import toast from 'react-hot-toast';
 import { getErrorMessage } from '@/services/api';
+import { usePrompt } from '@/components/PromptProvider';
 import type { Notification } from '@event-noti/shared';
 
 // Status filter options
@@ -45,13 +45,14 @@ function StatusBadge({ status }: { status: Notification['status'] }) {
 // Retry button component
 function RetryButton({ notification }: { notification: Notification }) {
   const retryNotification = useRetryNotification();
+  const prompt = usePrompt();
 
   const handleRetry = async () => {
     try {
       await retryNotification.mutateAsync(notification.id);
-      toast.success('通知已重新加入队列');
+      await prompt.success('通知已重新加入队列');
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      await prompt.error(getErrorMessage(error));
     }
   };
 
@@ -77,6 +78,7 @@ function RetryButton({ notification }: { notification: Notification }) {
 // Delete/Cancel button component
 function DeleteButton({ notification }: { notification: Notification }) {
   const deleteNotification = useDeleteNotification();
+  const prompt = usePrompt();
 
   const handleDelete = async () => {
     const isPending = notification.status === 'pending';
@@ -84,13 +86,14 @@ function DeleteButton({ notification }: { notification: Notification }) {
       ? '确定要取消这条待发送的通知吗？'
       : '确定要删除这条通知记录吗？';
 
-    if (!confirm(confirmMessage)) return;
+    const confirmed = await prompt.confirm(confirmMessage);
+    if (!confirmed) return;
 
     try {
       await deleteNotification.mutateAsync(notification.id);
-      toast.success(isPending ? '通知已取消' : '通知已删除');
+      await prompt.success(isPending ? '通知已取消' : '通知已删除');
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      await prompt.error(getErrorMessage(error));
     }
   };
 

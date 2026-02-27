@@ -4,7 +4,7 @@ import { LogIn, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import * as authService from '@/services/authService';
 import { getErrorMessage } from '@/services/api';
-import toast from 'react-hot-toast';
+import { usePrompt } from '@/components/PromptProvider';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -14,6 +14,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { setAuth } = useAuthStore();
+  const prompt = usePrompt();
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
 
@@ -21,7 +22,7 @@ export default function LoginPage() {
     e.preventDefault();
 
     if (!username.trim() || !password.trim()) {
-      toast.error('请输入用户名和密码');
+      await prompt.error('请输入用户名和密码');
       return;
     }
 
@@ -29,10 +30,10 @@ export default function LoginPage() {
     try {
       const result = await authService.login({ username, password });
       setAuth(result.user, result.token);
-      toast.success('登录成功');
+      await prompt.success('登录成功');
       navigate(from, { replace: true });
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      await prompt.error(getErrorMessage(error));
     } finally {
       setLoading(false);
     }

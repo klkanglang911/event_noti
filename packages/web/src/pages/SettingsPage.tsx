@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Settings, Clock, Globe, Save, Loader2, RefreshCw } from 'lucide-react';
 import { useSettings, useUpdateTimezone } from '@/hooks/useSettings';
 import { useAuthStore } from '@/stores/authStore';
-import toast from 'react-hot-toast';
 import { getErrorMessage } from '@/services/api';
+import { usePrompt } from '@/components/PromptProvider';
 
 // Common timezones
 const TIMEZONES = [
@@ -28,6 +28,7 @@ export default function SettingsPage() {
   const { user } = useAuthStore();
   const { data: settings, isLoading, refetch } = useSettings();
   const updateTimezone = useUpdateTimezone();
+  const prompt = usePrompt();
 
   const [selectedTimezone, setSelectedTimezone] = useState('Asia/Shanghai');
   const [currentTime, setCurrentTime] = useState('');
@@ -71,9 +72,9 @@ export default function SettingsPage() {
   const handleSave = async () => {
     try {
       await updateTimezone.mutateAsync({ timezone: selectedTimezone });
-      toast.success('时区设置已保存');
+      await prompt.success('时区设置已保存');
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      await prompt.error(getErrorMessage(error));
     }
   };
 

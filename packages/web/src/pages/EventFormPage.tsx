@@ -3,8 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Loader2, Save, Bold, Italic, List, ListOrdered, Quote, Code, Link, Eye, EyeOff } from 'lucide-react';
 import { useEvent, useCreateEvent, useUpdateEvent } from '@/hooks/useEvents';
 import { useGroups } from '@/hooks/useGroups';
-import toast from 'react-hot-toast';
 import { getErrorMessage } from '@/services/api';
+import { usePrompt } from '@/components/PromptProvider';
 import type { MessageFormat } from '@event-noti/shared';
 
 export default function EventFormPage() {
@@ -25,6 +25,7 @@ export default function EventFormPage() {
   const [messageFormat, setMessageFormat] = useState<MessageFormat>('text');
   const [showPreview, setShowPreview] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const prompt = usePrompt();
 
   // Populate form when editing
   useEffect(() => {
@@ -90,12 +91,12 @@ export default function EventFormPage() {
     e.preventDefault();
 
     if (!title.trim()) {
-      toast.error('请输入事件标题');
+      await prompt.error('请输入事件标题');
       return;
     }
 
     if (!targetDate) {
-      toast.error('请选择目标日期');
+      await prompt.error('请选择目标日期');
       return;
     }
 
@@ -111,14 +112,14 @@ export default function EventFormPage() {
     try {
       if (isEditing) {
         await updateEvent.mutateAsync({ id: parseInt(id!), input });
-        toast.success('事件已更新');
+        await prompt.success('事件已更新');
       } else {
         await createEvent.mutateAsync(input);
-        toast.success('事件已创建');
+        await prompt.success('事件已创建');
       }
       navigate('/events');
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      await prompt.error(getErrorMessage(error));
     }
   };
 

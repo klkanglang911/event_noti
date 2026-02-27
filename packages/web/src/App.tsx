@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Toaster } from 'react-hot-toast';
+import { PromptProvider } from '@/components/PromptProvider';
 
 // Layouts
 import MainLayout from '@/layouts/MainLayout';
@@ -30,87 +30,65 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          {/* Auth routes */}
-          <Route element={<AuthLayout />}>
-            <Route path="/login" element={<LoginPage />} />
-          </Route>
+      <PromptProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Auth routes */}
+            <Route element={<AuthLayout />}>
+              <Route path="/login" element={<LoginPage />} />
+            </Route>
 
-          {/* Protected routes */}
-          <Route
-            element={
-              <ProtectedRoute>
-                <MainLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/events" element={<EventListPage />} />
-            <Route path="/events/new" element={<EventFormPage />} />
-            <Route path="/events/:id/edit" element={<EventFormPage />} />
-            <Route path="/notifications" element={<NotificationHistoryPage />} />
+            {/* Protected routes */}
+            <Route
+              element={
+                <ProtectedRoute>
+                  <MainLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/events" element={<EventListPage />} />
+              <Route path="/events/new" element={<EventFormPage />} />
+              <Route path="/events/:id/edit" element={<EventFormPage />} />
+              <Route path="/notifications" element={<NotificationHistoryPage />} />
 
-            {/* Admin routes */}
-            <Route
-              path="/groups"
-              element={
-                <ProtectedRoute requireAdmin>
-                  <GroupListPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/webhooks"
-              element={
-                <ProtectedRoute requireAdmin>
-                  <WebhookListPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/users"
-              element={
-                <ProtectedRoute requireAdmin>
-                  <UserListPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <ProtectedRoute requireAdmin>
-                  <SettingsPage />
-                </ProtectedRoute>
-              }
-            />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-
-      {/* Toast notifications */}
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          duration: 3000,
-          style: {
-            background: '#333',
-            color: '#fff',
-          },
-          success: {
-            iconTheme: {
-              primary: '#10B981',
-              secondary: '#fff',
-            },
-          },
-          error: {
-            iconTheme: {
-              primary: '#EF4444',
-              secondary: '#fff',
-            },
-          },
-        }}
-      />
+              {/* Admin routes */}
+              <Route
+                path="/groups"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <GroupListPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/webhooks"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <WebhookListPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/users"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <UserListPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <SettingsPage />
+                  </ProtectedRoute>
+                }
+              />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </PromptProvider>
     </QueryClientProvider>
   );
 }

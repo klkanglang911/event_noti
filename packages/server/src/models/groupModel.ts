@@ -23,6 +23,10 @@ interface UserGroupRow {
   display_name: string;
 }
 
+function normalizeGroupName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
 // Convert database row to Group type
 function rowToGroup(row: GroupRow): Group {
   const group: Group = {
@@ -95,6 +99,29 @@ export function findById(id: number): Group | null {
   return row ? rowToGroup(row) : null;
 }
 
+export function existsByOwnerAndName(createdBy: number, name: string, excludeId?: number): boolean {
+  const normalizedName = normalizeGroupName(name);
+
+  const row = excludeId === undefined
+    ? db.prepare(`
+        SELECT id
+        FROM groups
+        WHERE created_by = ?
+          AND lower(trim(name)) = ?
+        LIMIT 1
+      `).get(createdBy, normalizedName)
+    : db.prepare(`
+        SELECT id
+        FROM groups
+        WHERE created_by = ?
+          AND lower(trim(name)) = ?
+          AND id != ?
+        LIMIT 1
+      `).get(createdBy, normalizedName, excludeId);
+
+  return !!row;
+}
+
 // Create group (admin only)
 export function create(createdBy: number, input: CreateGroupInput): Group {
   const now = getCurrentTimestamp();
@@ -103,7 +130,7 @@ export function create(createdBy: number, input: CreateGroupInput): Group {
   const result = db.prepare(`
     INSERT INTO groups (name, color, webhook_id, user_id, created_by, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(input.name, color, input.webhookId || null, createdBy, createdBy, now, now);
+  `).run(input.name.trim(), color, input.webhookId || null, createdBy, createdBy, now, now);
 
   return findById(result.lastInsertRowid as number)!;
 }
@@ -118,7 +145,7 @@ export function update(id: number, input: UpdateGroupInput): Group | null {
 
   if (input.name !== undefined) {
     updates.push('name = ?');
-    values.push(input.name);
+    values.push(input.name.trim());
   }
   if (input.color !== undefined) {
     updates.push('color = ?');

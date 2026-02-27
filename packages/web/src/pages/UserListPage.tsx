@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Users, Plus, Trash2, Edit, X, Loader2 } from 'lucide-react';
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '@/hooks/useUsers';
 import { useAuthStore } from '@/stores/authStore';
-import toast from 'react-hot-toast';
 import { getErrorMessage } from '@/services/api';
+import { usePrompt } from '@/components/PromptProvider';
 import type { User } from '@event-noti/shared';
 
 // Modal component
@@ -16,6 +16,7 @@ function UserModal({
   onClose: () => void;
   user?: User;
 }) {
+  const prompt = usePrompt();
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
@@ -41,17 +42,17 @@ function UserModal({
     e.preventDefault();
 
     if (!username.trim()) {
-      toast.error('请输入用户名');
+      await prompt.error('请输入用户名');
       return;
     }
 
     if (!displayName.trim()) {
-      toast.error('请输入显示名称');
+      await prompt.error('请输入显示名称');
       return;
     }
 
     if (!isEditing && !password) {
-      toast.error('请输入密码');
+      await prompt.error('请输入密码');
       return;
     }
 
@@ -65,7 +66,7 @@ function UserModal({
             ...(password ? { password } : {}),
           },
         });
-        toast.success('用户已更新');
+        await prompt.success('用户已更新');
       } else {
         await createUser.mutateAsync({
           username: username.trim(),
@@ -73,11 +74,11 @@ function UserModal({
           password,
           role,
         });
-        toast.success('用户已创建');
+        await prompt.success('用户已创建');
       }
       onClose();
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      await prompt.error(getErrorMessage(error));
     }
   };
 
@@ -183,6 +184,7 @@ function UserModal({
 export default function UserListPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | undefined>();
+  const prompt = usePrompt();
 
   const { user: currentUser } = useAuthStore();
   const { data: users, isLoading } = useUsers();
@@ -205,17 +207,18 @@ export default function UserListPage() {
 
   const handleDelete = async (id: number, username: string) => {
     if (id === currentUser?.id) {
-      toast.error('不能删除自己的账户');
+      await prompt.error('不能删除自己的账户');
       return;
     }
 
-    if (!confirm(`确定要删除用户 "${username}" 吗？`)) return;
+    const confirmed = await prompt.confirm(`确定要删除用户 "${username}" 吗？`);
+    if (!confirmed) return;
 
     try {
       await deleteUser.mutateAsync(id);
-      toast.success('用户已删除');
+      await prompt.success('用户已删除');
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      await prompt.error(getErrorMessage(error));
     }
   };
 

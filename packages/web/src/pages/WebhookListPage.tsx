@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Webhook, Plus, Trash2, Edit, X, Loader2, Send, Check, AlertCircle } from 'lucide-react';
 import { useWebhooks, useCreateWebhook, useUpdateWebhook, useDeleteWebhook, useTestWebhook } from '@/hooks/useWebhooks';
-import toast from 'react-hot-toast';
 import { getErrorMessage } from '@/services/api';
+import { usePrompt } from '@/components/PromptProvider';
 import type { Webhook as WebhookType } from '@event-noti/shared';
 
 // Modal component
@@ -15,6 +15,7 @@ function WebhookModal({
   onClose: () => void;
   webhook?: WebhookType;
 }) {
+  const prompt = usePrompt();
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [isDefault, setIsDefault] = useState(false);
@@ -38,12 +39,12 @@ function WebhookModal({
     e.preventDefault();
 
     if (!name.trim()) {
-      toast.error('请输入名称');
+      await prompt.error('请输入名称');
       return;
     }
 
     if (!url.trim()) {
-      toast.error('请输入 Webhook URL');
+      await prompt.error('请输入 Webhook URL');
       return;
     }
 
@@ -53,18 +54,18 @@ function WebhookModal({
           id: webhook.id,
           input: { name: name.trim(), url: url.trim(), isDefault },
         });
-        toast.success('Webhook 已更新');
+        await prompt.success('Webhook 已更新');
       } else {
         await createWebhook.mutateAsync({
           name: name.trim(),
           url: url.trim(),
           isDefault,
         });
-        toast.success('Webhook 已创建');
+        await prompt.success('Webhook 已创建');
       }
       onClose();
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      await prompt.error(getErrorMessage(error));
     }
   };
 
@@ -152,13 +153,14 @@ function WebhookModal({
 // Test button component
 function TestButton({ webhookId }: { webhookId: number }) {
   const testWebhook = useTestWebhook();
+  const prompt = usePrompt();
 
   const handleTest = async () => {
     try {
       await testWebhook.mutateAsync(webhookId);
-      toast.success('测试消息发送成功');
+      await prompt.success('测试消息发送成功');
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      await prompt.error(getErrorMessage(error));
     }
   };
 
@@ -185,6 +187,7 @@ function TestButton({ webhookId }: { webhookId: number }) {
 export default function WebhookListPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingWebhook, setEditingWebhook] = useState<WebhookType | undefined>();
+  const prompt = usePrompt();
 
   const { data: webhooks, isLoading } = useWebhooks();
   const deleteWebhook = useDeleteWebhook();
@@ -205,13 +208,14 @@ export default function WebhookListPage() {
   };
 
   const handleDelete = async (id: number, name: string) => {
-    if (!confirm(`确定要删除 Webhook "${name}" 吗？`)) return;
+    const confirmed = await prompt.confirm(`确定要删除 Webhook "${name}" 吗？`);
+    if (!confirmed) return;
 
     try {
       await deleteWebhook.mutateAsync(id);
-      toast.success('Webhook 已删除');
+      await prompt.success('Webhook 已删除');
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      await prompt.error(getErrorMessage(error));
     }
   };
 

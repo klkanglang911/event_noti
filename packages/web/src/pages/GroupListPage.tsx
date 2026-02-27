@@ -3,8 +3,8 @@ import { FolderOpen, Plus, Trash2, Edit, X, Loader2, Users } from 'lucide-react'
 import { useGroups, useCreateGroup, useUpdateGroup, useDeleteGroup, useGroupUsers, useSetGroupUsers } from '@/hooks/useGroups';
 import { useWebhooks } from '@/hooks/useWebhooks';
 import { useUsers } from '@/hooks/useUsers';
-import toast from 'react-hot-toast';
 import { getErrorMessage } from '@/services/api';
+import { usePrompt } from '@/components/PromptProvider';
 import type { Group } from '@event-noti/shared';
 
 // Predefined colors
@@ -32,6 +32,7 @@ function GroupModal({
   group?: Group;
   webhooks: { id: number; name: string }[];
 }) {
+  const prompt = usePrompt();
   const [name, setName] = useState('');
   const [color, setColor] = useState(COLORS[0]);
   const [webhookId, setWebhookId] = useState<number | ''>('');
@@ -55,7 +56,7 @@ function GroupModal({
     e.preventDefault();
 
     if (!name.trim()) {
-      toast.error('请输入分组名称');
+      await prompt.error('请输入分组名称');
       return;
     }
 
@@ -65,18 +66,19 @@ function GroupModal({
           id: group.id,
           input: { name: name.trim(), color, webhookId: webhookId || null },
         });
-        toast.success('分组已更新');
+        onClose();
+        await prompt.success('分组已更新');
       } else {
         await createGroup.mutateAsync({
           name: name.trim(),
           color,
           webhookId: webhookId || undefined,
         });
-        toast.success('分组已创建');
+        onClose();
+        await prompt.success('分组已创建');
       }
-      onClose();
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      await prompt.error(getErrorMessage(error));
     }
   };
 
@@ -185,6 +187,7 @@ function UserAssignmentModal({
   onClose: () => void;
   group: Group | null;
 }) {
+  const prompt = usePrompt();
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
 
   const { data: allUsers, isLoading: loadingUsers } = useUsers();
@@ -214,10 +217,10 @@ function UserAssignmentModal({
         groupId: group.id,
         userIds: selectedUserIds,
       });
-      toast.success('用户分配已更新');
+      await prompt.success('用户分配已更新');
       onClose();
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      await prompt.error(getErrorMessage(error));
     }
   };
 
@@ -305,6 +308,7 @@ export default function GroupListPage() {
   const [editingGroup, setEditingGroup] = useState<Group | undefined>();
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [assigningGroup, setAssigningGroup] = useState<Group | null>(null);
+  const prompt = usePrompt();
 
   const { data: groups, isLoading } = useGroups();
   const { data: webhooks } = useWebhooks();
@@ -343,13 +347,14 @@ export default function GroupListPage() {
       ? `分组 "${name}" 包含 ${eventCount} 个事件，删除后这些事件将变为无分组。确定删除吗？`
       : `确定要删除分组 "${name}" 吗？`;
 
-    if (!confirm(message)) return;
+    const confirmed = await prompt.confirm(message);
+    if (!confirmed) return;
 
     try {
       await deleteGroup.mutateAsync(id);
-      toast.success('分组已删除');
+      await prompt.success('分组已删除');
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      await prompt.error(getErrorMessage(error));
     }
   };
 

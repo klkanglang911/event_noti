@@ -5,13 +5,13 @@ import { ERROR_CODES, DEFAULTS } from '@event-noti/shared';
 
 // Validation schemas
 const createGroupSchema = z.object({
-  name: z.string().min(1, '名称不能为空').max(50),
+  name: z.string().trim().min(1, '名称不能为空').max(50),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, '颜色格式无效').default(DEFAULTS.GROUP_COLOR),
   webhookId: z.number().int().positive().optional(),
 });
 
 const updateGroupSchema = z.object({
-  name: z.string().min(1).max(50).optional(),
+  name: z.string().trim().min(1, '名称不能为空').max(50).optional(),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
   webhookId: z.number().int().positive().optional().nullable(),
 });
@@ -92,6 +92,14 @@ export function createGroup(req: Request, res: Response): void {
     const group = groupService.createGroup(userId, parseResult.data);
     res.status(201).json({ data: group, success: true });
   } catch (error) {
+    if (error instanceof Error && error.message === groupService.GROUP_NAME_EXISTS_ERROR) {
+      res.status(409).json({
+        error: { code: ERROR_CODES.ALREADY_EXISTS, message: error.message },
+        success: false,
+      });
+      return;
+    }
+
     if (error instanceof Error && error.message === 'Webhook 不存在') {
       res.status(400).json({
         error: { code: ERROR_CODES.NOT_FOUND, message: error.message },
@@ -143,6 +151,14 @@ export function updateGroup(req: Request, res: Response): void {
 
     res.json({ data: group, success: true });
   } catch (error) {
+    if (error instanceof Error && error.message === groupService.GROUP_NAME_EXISTS_ERROR) {
+      res.status(409).json({
+        error: { code: ERROR_CODES.ALREADY_EXISTS, message: error.message },
+        success: false,
+      });
+      return;
+    }
+
     if (error instanceof Error && error.message === 'Webhook 不存在') {
       res.status(400).json({
         error: { code: ERROR_CODES.NOT_FOUND, message: error.message },
