@@ -6,6 +6,7 @@ import groupRoutes from './group.routes.ts';
 import webhookRoutes from './webhook.routes.ts';
 import notificationRoutes from './notification.routes.ts';
 import settingsRoutes from './settings.ts';
+import recurringReminderRoutes from './recurringReminder.routes.ts';
 
 const router = Router();
 
@@ -39,6 +40,9 @@ router.use('/webhooks', webhookRoutes);
 
 // Notification routes
 router.use('/notifications', notificationRoutes);
+
+// Recurring reminder routes
+router.use('/recurring-reminders', recurringReminderRoutes);
 
 // Settings routes
 router.use('/settings', settingsRoutes);

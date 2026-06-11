@@ -17,6 +17,8 @@ import NotificationHistoryPage from '@/pages/NotificationHistoryPage';
 import WebhookListPage from '@/pages/WebhookListPage';
 import UserListPage from '@/pages/UserListPage';
 import SettingsPage from '@/pages/SettingsPage';
+import RecurringReminderListPage from '@/pages/RecurringReminderListPage';
+import RecurringReminderFormPage from '@/pages/RecurringReminderFormPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,6 +52,9 @@ function App() {
               <Route path="/events" element={<EventListPage />} />
               <Route path="/events/new" element={<EventFormPage />} />
               <Route path="/events/:id/edit" element={<EventFormPage />} />
+              <Route path="/recurring" element={<RecurringReminderListPage />} />
+              <Route path="/recurring/new" element={<RecurringReminderFormPage />} />
+              <Route path="/recurring/:id/edit" element={<RecurringReminderFormPage />} />
               <Route path="/notifications" element={<NotificationHistoryPage />} />
 
               {/* Admin routes */}

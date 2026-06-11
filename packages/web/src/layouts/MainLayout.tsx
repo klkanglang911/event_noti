@@ -13,6 +13,7 @@ import {
   User,
   LayoutDashboard,
   Settings,
+  AlarmClock,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -20,6 +21,7 @@ import { useAuthStore } from '@/stores/authStore';
 const navItems = [
   { path: '/', label: '仪表板', icon: LayoutDashboard },
   { path: '/events', label: '事件管理', icon: Calendar },
+  { path: '/recurring', label: '循环提醒', icon: AlarmClock },
   { path: '/notifications', label: '通知历史', icon: History },
 ];
 

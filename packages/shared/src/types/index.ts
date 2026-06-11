@@ -181,3 +181,72 @@ export interface SystemSettings {
 export interface UpdateTimezoneInput {
   timezone: string;
 }
+
+// Recurring Reminder types
+export type ReminderCategory = 'stand' | 'water' | 'eye' | 'medicine' | 'custom';
+export type ReminderStatus = 'active' | 'paused' | 'disabled';
+
+export interface RecurringReminder {
+  id: number;
+  userId: number;
+  title: string;
+  content: string | null;
+  category: ReminderCategory;
+  intervalMinutes: number;
+  startTime: string; // HH:MM
+  endTime: string; // HH:MM
+  workdaysOnly: boolean;
+  groupId: number | null;
+  messageFormat: MessageFormat;
+  status: ReminderStatus;
+  lastSentAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  // Joined fields
+  group?: Group;
+}
+
+export interface CreateRecurringReminderInput {
+  title: string;
+  content?: string;
+  category?: ReminderCategory;
+  intervalMinutes: number;
+  startTime?: string; // HH:MM, defaults to '09:00'
+  endTime?: string; // HH:MM, defaults to '18:00'
+  workdaysOnly?: boolean; // defaults to true
+  groupId?: number;
+  messageFormat?: MessageFormat;
+}
+
+export interface UpdateRecurringReminderInput {
+  title?: string;
+  content?: string;
+  category?: ReminderCategory;
+  intervalMinutes?: number;
+  startTime?: string;
+  endTime?: string;
+  workdaysOnly?: boolean;
+  groupId?: number | null;
+  messageFormat?: MessageFormat;
+  status?: ReminderStatus;
+}
+
+export interface RecurringReminderLog {
+  id: number;
+  reminderId: number;
+  sentAt: string;
+  status: 'sent' | 'failed';
+  errorMessage: string | null;
+}
+
+export interface ReminderPreset {
+  name: string;
+  category: ReminderCategory;
+  intervalMinutes: number;
+  startTime: string;
+  endTime: string;
+  workdaysOnly: boolean;
+  title: string;
+  content: string;
+  icon: string;
+}

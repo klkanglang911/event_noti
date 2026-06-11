@@ -70,3 +70,87 @@ export const GROUP_COLORS = [
   '#06B6D4', // Cyan
   '#F97316', // Orange
 ] as const;
+
+// Recurring Reminder categories
+export const REMINDER_CATEGORIES = {
+  STAND: 'stand',
+  WATER: 'water',
+  EYE: 'eye',
+  MEDICINE: 'medicine',
+  CUSTOM: 'custom',
+} as const;
+
+export const REMINDER_CATEGORY_LABELS: Record<string, string> = {
+  stand: '站立提醒',
+  water: '喝水提醒',
+  eye: '护眼提醒',
+  medicine: '吃药提醒',
+  custom: '自定义',
+};
+
+export const REMINDER_CATEGORY_ICONS: Record<string, string> = {
+  stand: '🪑',
+  water: '💧',
+  eye: '👁️',
+  medicine: '💊',
+  custom: '🔔',
+};
+
+// Preset reminder templates
+export const REMINDER_PRESETS = [
+  {
+    name: '久坐站立',
+    category: 'stand' as const,
+    intervalMinutes: 60,
+    startTime: '09:00',
+    endTime: '18:00',
+    workdaysOnly: true,
+    title: '站立活动一下',
+    content: '久坐对身体不好，该站起来走动走动了！',
+    icon: '🪑',
+  },
+  {
+    name: '喝水提醒',
+    category: 'water' as const,
+    intervalMinutes: 45,
+    startTime: '08:00',
+    endTime: '20:00',
+    workdaysOnly: false,
+    title: '该喝水了',
+    content: '记得补充水分，保持身体健康！',
+    icon: '💧',
+  },
+  {
+    name: '20-20-20 护眼',
+    category: 'eye' as const,
+    intervalMinutes: 20,
+    startTime: '09:00',
+    endTime: '18:00',
+    workdaysOnly: true,
+    title: '眼睛休息一下',
+    content: '看看 20 英尺（6 米）外的地方 20 秒，保护视力！',
+    icon: '👁️',
+  },
+  {
+    name: '上午吃药',
+    category: 'medicine' as const,
+    intervalMinutes: 1440, // 24小时 = 每天一次
+    startTime: '09:00',
+    endTime: '09:01',
+    workdaysOnly: false,
+    title: '上午吃药提醒',
+    content: '别忘了吃上午的药！',
+    icon: '💊',
+  },
+  {
+    name: '下午吃药',
+    category: 'medicine' as const,
+    intervalMinutes: 1440,
+    startTime: '15:00',
+    endTime: '15:01',
+    workdaysOnly: false,
+    title: '下午吃药提醒',
+    content: '别忘了吃下午的药！',
+    icon: '💊',
+  },
+] as const;

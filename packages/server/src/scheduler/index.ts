@@ -5,6 +5,9 @@ import * as groupModel from '../models/groupModel.ts';
 import * as webhookModel from '../models/webhookModel.ts';
 import * as webhookService from '../services/webhookService.ts';
 import * as settingsService from '../services/settingsService.ts';
+import * as recurringReminderModel from '../models/recurringReminderModel.ts';
+import * as recurringReminderLogModel from '../models/recurringReminderLogModel.ts';
+import type { RecurringReminder } from '@event-noti/shared';
 
 // Configuration from environment
 // Check every minute for scheduled notifications
@@ -170,6 +173,141 @@ async function retryFailedNotifications(): Promise<void> {
   console.log(`[Scheduler] Retry complete: ${successCount}/${failedNotifications.length} recovered`);
 }
 
+// Check if current time is within the reminder's active time range
+function isWithinTimeRange(startTime: string, endTime: string, currentTime: string): boolean {
+  const [startH, startM] = startTime.split(':').map(Number);
+  const [endH, endM] = endTime.split(':').map(Number);
+  const [currentH, currentM] = currentTime.split(':').map(Number);
+
+  const startMinutes = startH * 60 + startM;
+  const endMinutes = endH * 60 + endM;
+  const currentMinutes = currentH * 60 + currentM;
+
+  return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+}
+
+// Check if today is a workday (Monday to Friday)
+function isWorkday(dateStr: string): boolean {
+  const date = new Date(dateStr + 'T00:00:00');
+  const day = date.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+  return day >= 1 && day <= 5;
+}
+
+// Check if enough time has passed since last send
+function shouldSendNow(lastSentAt: string | null, intervalMinutes: number, currentTime: string): boolean {
+  if (!lastSentAt) {
+    return true; // Never sent before
+  }
+
+  const now = new Date();
+  const lastSent = new Date(lastSentAt);
+  const diffMs = now.getTime() - lastSent.getTime();
+  const diffMinutes = diffMs / (1000 * 60);
+
+  return diffMinutes >= intervalMinutes;
+}
+
+// Send recurring reminder notification
+async function sendRecurringReminder(reminder: RecurringReminder): Promise<boolean> {
+  // Find webhook URL (group webhook or default webhook)
+  let webhookUrl: string | null = null;
+
+  if (reminder.groupId) {
+    const group = groupModel.findById(reminder.groupId);
+    if (group?.webhookId) {
+      const webhook = webhookModel.findById(group.webhookId);
+      webhookUrl = webhook?.url || null;
+    }
+  }
+
+  if (!webhookUrl) {
+    const defaultWebhook = webhookModel.findDefault();
+    webhookUrl = defaultWebhook?.url || null;
+  }
+
+  if (!webhookUrl) {
+    console.warn(`[Scheduler] No webhook configured for recurring reminder ${reminder.id}`);
+    recurringReminderLogModel.create(reminder.id, 'failed', '未配置 Webhook');
+    return false;
+  }
+
+  // Build message content
+  const content = reminder.content || reminder.title;
+
+  console.log(`[Scheduler] Sending recurring reminder ${reminder.id}: "${reminder.title}" (format: ${reminder.messageFormat})`);
+
+  const result = await webhookService.sendNotification(
+    webhookUrl,
+    reminder.title,
+    content,
+    0, // No days remaining for recurring reminders
+    reminder.messageFormat || 'text'
+  );
+
+  if (result.success) {
+    recurringReminderModel.updateLastSentAt(reminder.id);
+    recurringReminderLogModel.create(reminder.id, 'sent');
+    console.log(`[Scheduler] Recurring reminder ${reminder.id} sent successfully`);
+    return true;
+  } else {
+    recurringReminderLogModel.create(reminder.id, 'failed', result.error);
+    console.error(`[Scheduler] Recurring reminder ${reminder.id} failed: ${result.error}`);
+    return false;
+  }
+}
+
+// Process recurring reminders
+async function processRecurringReminders(): Promise<void> {
+  const { date: today, time: currentTime } = settingsService.getCurrentTimeInTimezone();
+
+  const activeReminders = recurringReminderModel.findActive();
+
+  if (activeReminders.length === 0) {
+    return;
+  }
+
+  console.log(`[Scheduler] Checking ${activeReminders.length} recurring reminders`);
+
+  let successCount = 0;
+  let skipCount = 0;
+  let failCount = 0;
+
+  for (const reminder of activeReminders) {
+    // Check if within time range
+    if (!isWithinTimeRange(reminder.startTime, reminder.endTime, currentTime)) {
+      skipCount++;
+      continue;
+    }
+
+    // Check workday filter
+    if (reminder.workdaysOnly && !isWorkday(today)) {
+      skipCount++;
+      continue;
+    }
+
+    // Check interval
+    if (!shouldSendNow(reminder.lastSentAt, reminder.intervalMinutes, currentTime)) {
+      skipCount++;
+      continue;
+    }
+
+    // Send notification
+    const success = await sendRecurringReminder(reminder);
+    if (success) {
+      successCount++;
+    } else {
+      failCount++;
+    }
+
+    // Small delay between notifications
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  if (successCount > 0 || failCount > 0) {
+    console.log(`[Scheduler] Recurring reminders: ${successCount} sent, ${failCount} failed, ${skipCount} skipped`);
+  }
+}
+
 // Start the scheduler
 export function startScheduler(): void {
   const timezone = settingsService.getTimezone();
@@ -208,6 +346,7 @@ export function startScheduler(): void {
     async () => {
       try {
         await processScheduledNotifications();
+        await processRecurringReminders();
       } catch (error) {
         console.error(`[Scheduler] Notification job error:`, error);
       }

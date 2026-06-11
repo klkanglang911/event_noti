@@ -221,6 +221,51 @@ function runMigrations(): void {
   // Ensure user_groups indexes exist
   db.exec('CREATE INDEX IF NOT EXISTS idx_user_groups_user_id ON user_groups(user_id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_user_groups_group_id ON user_groups(group_id)');
+
+  // Migration 7: Create recurring_reminders table
+  const recurringRemindersTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='recurring_reminders'").get();
+  if (!recurringRemindersTable) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS recurring_reminders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        content TEXT,
+        category TEXT DEFAULT 'custom' CHECK(category IN ('stand', 'water', 'eye', 'medicine', 'custom')),
+        interval_minutes INTEGER NOT NULL,
+        start_time TEXT DEFAULT '09:00',
+        end_time TEXT DEFAULT '18:00',
+        workdays_only INTEGER DEFAULT 1,
+        group_id INTEGER REFERENCES groups(id) ON DELETE SET NULL,
+        message_format TEXT DEFAULT 'text' CHECK(message_format IN ('text', 'markdown')),
+        status TEXT DEFAULT 'active' CHECK(status IN ('active', 'paused', 'disabled')),
+        last_sent_at DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    db.exec('CREATE INDEX IF NOT EXISTS idx_recurring_reminders_user_id ON recurring_reminders(user_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_recurring_reminders_status ON recurring_reminders(status)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_recurring_reminders_category ON recurring_reminders(category)');
+    console.log('✅ Migration: Created recurring_reminders table');
+  }
+
+  // Migration 8: Create recurring_reminder_logs table
+  const recurringReminderLogsTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='recurring_reminder_logs'").get();
+  if (!recurringReminderLogsTable) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS recurring_reminder_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        reminder_id INTEGER NOT NULL REFERENCES recurring_reminders(id) ON DELETE CASCADE,
+        sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        status TEXT DEFAULT 'sent' CHECK(status IN ('sent', 'failed')),
+        error_message TEXT
+      )
+    `);
+    db.exec('CREATE INDEX IF NOT EXISTS idx_recurring_reminder_logs_reminder_id ON recurring_reminder_logs(reminder_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_recurring_reminder_logs_sent_at ON recurring_reminder_logs(sent_at)');
+    console.log('✅ Migration: Created recurring_reminder_logs table');
+  }
 }
 
 // Seed default admin user
