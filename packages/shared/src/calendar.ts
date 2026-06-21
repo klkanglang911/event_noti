@@ -1,4 +1,4 @@
-import { SOLAR_TERM_OPTIONS, TRADITIONAL_FESTIVAL_OPTIONS } from './constants';
+import { CALENDAR_EVENT_OPTIONS, SOLAR_TERM_OPTIONS, TRADITIONAL_FESTIVAL_OPTIONS } from './constants';
 import type {
   CalendarEventOption,
   CalendarEventType,
@@ -144,4 +144,34 @@ export function getCalendarReminderDate(
 ): string {
   const scheduledDate = addDaysToIsoDate(targetDate, -advanceDays);
   return scheduledDate < fromDate ? fromDate : scheduledDate;
+}
+
+export interface UpcomingCalendarEvent {
+  key: string;
+  name: string;
+  eventType: CalendarEventType;
+  date: string;
+}
+
+// 取距 fromDate 最近的下一个节日或节气（遍历全部节日 + 节气）。
+// 可传 excludeKey 排除指定项（如当前正在提醒的节日/节气，避免预告到自己）。
+export function getNextUpcomingCalendarEvent(
+  fromDate: string = getTodayIsoDate(),
+  excludeKey?: string
+): UpcomingCalendarEvent | null {
+  let best: UpcomingCalendarEvent | null = null;
+
+  for (const option of CALENDAR_EVENT_OPTIONS) {
+    if (option.key === excludeKey) continue;
+    try {
+      const date = getNextCalendarEventDate(option.eventType, option.key, fromDate);
+      if (!best || date < best.date) {
+        best = { key: option.key, name: option.name, eventType: option.eventType, date };
+      }
+    } catch {
+      // 该节日/节气连续 5 年内算不出，跳过
+    }
+  }
+
+  return best;
 }

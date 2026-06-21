@@ -7,7 +7,7 @@ import * as webhookService from '../services/webhookService.ts';
 import * as settingsService from '../services/settingsService.ts';
 import * as recurringReminderModel from '../models/recurringReminderModel.ts';
 import * as recurringReminderLogModel from '../models/recurringReminderLogModel.ts';
-import type { RecurringReminder } from '@event-noti/shared';
+import { getNextUpcomingCalendarEvent, isCalendarEventType, type RecurringReminder } from '@event-noti/shared';
 
 // Configuration from environment
 // Check every minute for scheduled notifications
@@ -63,13 +63,27 @@ async function sendNotification(notificationId: number): Promise<boolean> {
   const targetDate = new Date(event.targetDate);
   const daysRemaining = Math.ceil((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
+  // 节日/节气事件：在消息末尾附带「下一个节日/节气」预告（取最近 1 个，排除当前）
+  let content = event.content || '';
+  if (isCalendarEventType(event.eventType) && event.calendarKey) {
+    const upcoming = getNextUpcomingCalendarEvent(todayStr, event.calendarKey);
+    if (upcoming) {
+      const nextDate = new Date(upcoming.date + 'T00:00:00');
+      const daysToNext = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      const typeLabel = upcoming.eventType === 'solar_term' ? '节气' : '节日';
+      const dateLabel = `${nextDate.getMonth() + 1}月${nextDate.getDate()}日`;
+      const preview = `📅 下一个${typeLabel}：${upcoming.name}（${dateLabel}，还有 ${daysToNext} 天）`;
+      content = content ? `${content}\n\n${preview}` : preview;
+    }
+  }
+
   // Send notification with message format
   console.log(`[Scheduler] Sending notification ${notificationId} for event "${event.title}" (format: ${event.messageFormat})`);
 
   const result = await webhookService.sendNotification(
     webhookUrl,
     event.title,
-    event.content || '',
+    content,
     daysRemaining,
     event.messageFormat || 'text'
   );
