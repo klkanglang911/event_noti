@@ -15,6 +15,7 @@ import routes from './routes/index.ts';
 // Import schedulers
 import { startScheduler } from './scheduler/index.ts';
 import { startExpireScheduler } from './scheduler/expireEvents.ts';
+import { startRenewScheduler } from './scheduler/renewCalendarEvents.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -97,4 +98,5 @@ app.listen(PORT, () => {
   // Start schedulers
   startScheduler();
   startExpireScheduler();
+  startRenewScheduler();
 });

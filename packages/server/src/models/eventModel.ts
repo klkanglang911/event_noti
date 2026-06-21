@@ -1,5 +1,5 @@
 import db, { getCurrentTimestamp, transaction } from '../db/index.ts';
-import type { Event, CreateEventInput, UpdateEventInput } from '@event-noti/shared';
+import { EVENT_TYPES, type Event, type CreateEventInput, type UpdateEventInput } from '@event-noti/shared';
 import * as notificationModel from './notificationModel.ts';
 import * as settingsService from '../services/settingsService.ts';
 
@@ -265,4 +265,42 @@ export function findWithTodayNotifications(): Event[] {
   `).all(today) as EventRow[];
 
   return rows.map(rowToEvent);
+}
+
+// Find calendar (festival / solar-term) events whose target date has passed and need yearly renewal.
+// Renewal scheduler runs this before markExpired so these events stay active.
+export function findCalendarEventsToRenew(): Event[] {
+  // Use timezone-aware today
+  const today = settingsService.getTodayInTimezone();
+  const rows = db.prepare(`
+    SELECT e.*, g.name as group_name, g.color as group_color, g.webhook_id
+    FROM events e
+    LEFT JOIN groups g ON e.group_id = g.id
+    WHERE e.event_type IN (?, ?) AND e.status = 'active' AND e.target_date < ?
+    ORDER BY e.target_date ASC
+  `).all(EVENT_TYPES.TRADITIONAL_FESTIVAL, EVENT_TYPES.SOLAR_TERM, today) as EventRow[];
+
+  return rows.map(rowToEvent);
+}
+
+// Renew a calendar event to its next-year occurrence.
+// Only advances target_date (and re-activates status); appends a new reminder WITHOUT
+// deleting existing notifications, so historical sent records are preserved.
+// (Deliberately does not reuse update(), which would deleteByEventId and wipe history.)
+export function renewCalendarEvent(id: number, newTargetDate: string): Event | null {
+  return transaction(() => {
+    const event = findById(id);
+    if (!event) return null;
+
+    db.prepare(`
+      UPDATE events
+      SET target_date = ?, status = 'active', updated_at = ?
+      WHERE id = ?
+    `).run(newTargetDate, getCurrentTimestamp(), id);
+
+    // Append next-year reminder; existing (historical) notifications are kept
+    notificationModel.generateCalendarReminder(id, newTargetDate, event.remindDays, event.targetTime);
+
+    return findById(id);
+  });
 }
