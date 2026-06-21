@@ -5,6 +5,7 @@ import { useEvents, useDeleteEvent } from '@/hooks/useEvents';
 import { useGroups } from '@/hooks/useGroups';
 import { getErrorMessage } from '@/services/api';
 import { usePrompt } from '@/components/PromptProvider';
+import { EVENT_TYPE_LABELS, getCalendarEventOption, type Event } from '@event-noti/shared';
 
 // CountdownBadge component
 function CountdownBadge({ days }: { days: number }) {
@@ -40,6 +41,21 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${color}`}>
       {label}
+    </span>
+  );
+}
+
+function CalendarEventMeta({ event }: { event: Event }) {
+  if (event.eventType === 'custom') return null;
+
+  const option = event.calendarKey
+    ? getCalendarEventOption(event.eventType, event.calendarKey)
+    : undefined;
+
+  return (
+    <span className="ml-2">
+      · {EVENT_TYPE_LABELS[event.eventType]}: {option?.name || event.calendarKey || '未选择'}
+      · 提前 {event.remindDays} 天
     </span>
   );
 }
@@ -133,6 +149,7 @@ export default function EventListPage() {
                     {event.group && (
                       <span className="ml-2">· {event.group.name}</span>
                     )}
+                    <CalendarEventMeta event={event} />
                   </p>
                 </div>
 

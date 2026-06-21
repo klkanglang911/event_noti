@@ -83,6 +83,18 @@ function runMigrations(): void {
     console.log('✅ Migration: Added message_format column to events');
   }
 
+  // Migration 3.1: Add calendar event type columns to events table
+  const eventsInfoWithMessageFormat = db.prepare("PRAGMA table_info(events)").all() as { name: string }[];
+  if (!eventsInfoWithMessageFormat.some((col) => col.name === 'event_type')) {
+    db.exec("ALTER TABLE events ADD COLUMN event_type TEXT DEFAULT 'custom'");
+    console.log('✅ Migration: Added event_type column to events');
+  }
+
+  if (!eventsInfoWithMessageFormat.some((col) => col.name === 'calendar_key')) {
+    db.exec('ALTER TABLE events ADD COLUMN calendar_key TEXT');
+    console.log('✅ Migration: Added calendar_key column to events');
+  }
+
   // Migration 4: Create settings table if not exists
   const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='settings'").get();
   if (!tables) {

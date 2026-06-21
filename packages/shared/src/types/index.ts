@@ -25,11 +25,37 @@ export interface UpdateUserInput {
 
 // Event types
 export type MessageFormat = 'text' | 'markdown';
+export type EventType = 'custom' | 'traditional_festival' | 'solar_term';
+export type CalendarEventType = Exclude<EventType, 'custom'>;
+export type LunarFestivalSpecial = 'lunar_new_year_eve';
+
+export interface CalendarEventOptionBase {
+  key: string;
+  name: string;
+  eventType: CalendarEventType;
+}
+
+export interface TraditionalFestivalOption extends CalendarEventOptionBase {
+  eventType: 'traditional_festival';
+  lunarMonth?: number;
+  lunarDay?: number;
+  special?: LunarFestivalSpecial;
+}
+
+export interface SolarTermOption extends CalendarEventOptionBase {
+  eventType: 'solar_term';
+  month: number;
+  coefficient: number;
+}
+
+export type CalendarEventOption = TraditionalFestivalOption | SolarTermOption;
 
 export interface Event {
   id: number;
   title: string;
   content: string | null;
+  eventType: EventType;
+  calendarKey: string | null;
   targetDate: string; // YYYY-MM-DD
   targetTime: string; // HH:MM
   remindDays: number;
@@ -47,9 +73,11 @@ export interface Event {
 export interface CreateEventInput {
   title: string;
   content?: string;
-  targetDate: string;
+  eventType?: EventType; // defaults to 'custom'
+  calendarKey?: string;
+  targetDate?: string;
   targetTime?: string; // HH:MM, defaults to 09:00
-  remindDays?: number; // Deprecated: now using smart notification rules
+  remindDays?: number; // For calendar events, days before target date to notify
   messageFormat?: MessageFormat; // defaults to 'text'
   groupId?: number;
 }
@@ -57,6 +85,8 @@ export interface CreateEventInput {
 export interface UpdateEventInput {
   title?: string;
   content?: string;
+  eventType?: EventType;
+  calendarKey?: string | null;
   targetDate?: string;
   targetTime?: string;
   remindDays?: number;

@@ -51,6 +51,8 @@ CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
     content TEXT,
+    event_type TEXT DEFAULT 'custom' CHECK(event_type IN ('custom', 'traditional_festival', 'solar_term')),
+    calendar_key TEXT,
     target_date DATE NOT NULL,
     target_time TEXT DEFAULT '09:00',  -- 通知时间，格式 HH:MM
     remind_days INTEGER DEFAULT 7,

@@ -90,7 +90,8 @@ export async function retryNotification(
     webhookUrl,
     event.title,
     event.content || '',
-    daysRemaining
+    daysRemaining,
+    event.messageFormat || 'text'
   );
 
   if (result.success) {

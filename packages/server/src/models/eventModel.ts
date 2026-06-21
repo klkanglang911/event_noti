@@ -7,6 +7,8 @@ interface EventRow {
   id: number;
   title: string;
   content: string | null;
+  event_type: Event['eventType'] | null;
+  calendar_key: string | null;
   target_date: string;
   target_time: string;
   remind_days: number;
@@ -35,6 +37,8 @@ function rowToEvent(row: EventRow): Event {
     id: row.id,
     title: row.title,
     content: row.content,
+    eventType: row.event_type || 'custom',
+    calendarKey: row.calendar_key,
     targetDate: row.target_date,
     targetTime: row.target_time || '09:00',
     remindDays: row.remind_days,
@@ -99,18 +103,30 @@ export function findById(id: number): Event | null {
 export function create(userId: number, input: CreateEventInput): Event {
   return transaction(() => {
     const now = getCurrentTimestamp();
+    const eventType = input.eventType || 'custom';
+    const targetDate = input.targetDate;
     const targetTime = input.targetTime || '09:00';
+    const remindDays = input.remindDays ?? 7;
     const messageFormat = input.messageFormat || 'text';
 
+    if (!targetDate) {
+      throw new Error('请选择目标日期');
+    }
+
     const result = db.prepare(`
-      INSERT INTO events (title, content, target_date, target_time, remind_days, message_format, group_id, user_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO events (
+        title, content, event_type, calendar_key, target_date, target_time,
+        remind_days, message_format, group_id, user_id, created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       input.title,
       input.content || null,
-      input.targetDate,
+      eventType,
+      eventType === 'custom' ? null : input.calendarKey || null,
+      targetDate,
       targetTime,
-      input.remindDays,
+      remindDays,
       messageFormat,
       input.groupId || null,
       userId,
@@ -121,7 +137,11 @@ export function create(userId: number, input: CreateEventInput): Event {
     const eventId = result.lastInsertRowid as number;
 
     // Generate notification records
-    notificationModel.generateForEvent(eventId, input.targetDate, input.remindDays, targetTime);
+    if (eventType === 'custom') {
+      notificationModel.generateForEvent(eventId, targetDate, remindDays, targetTime);
+    } else {
+      notificationModel.generateCalendarReminder(eventId, targetDate, remindDays, targetTime);
+    }
 
     return findById(eventId)!;
   });
@@ -144,6 +164,16 @@ export function update(id: number, input: UpdateEventInput): Event | null {
     if (input.content !== undefined) {
       updates.push('content = ?');
       values.push(input.content);
+    }
+    if (input.eventType !== undefined) {
+      updates.push('event_type = ?');
+      values.push(input.eventType);
+      needRegenerateNotifications = true;
+    }
+    if (input.calendarKey !== undefined) {
+      updates.push('calendar_key = ?');
+      values.push(input.calendarKey);
+      needRegenerateNotifications = true;
     }
     if (input.targetDate !== undefined) {
       updates.push('target_date = ?');
@@ -185,7 +215,16 @@ export function update(id: number, input: UpdateEventInput): Event | null {
     if (needRegenerateNotifications) {
       const updatedEvent = findById(id)!;
       notificationModel.deleteByEventId(id);
-      notificationModel.generateForEvent(id, updatedEvent.targetDate, updatedEvent.remindDays, updatedEvent.targetTime);
+      if (updatedEvent.eventType === 'custom') {
+        notificationModel.generateForEvent(id, updatedEvent.targetDate, updatedEvent.remindDays, updatedEvent.targetTime);
+      } else {
+        notificationModel.generateCalendarReminder(
+          id,
+          updatedEvent.targetDate,
+          updatedEvent.remindDays,
+          updatedEvent.targetTime
+        );
+      }
     }
 
     return findById(id);

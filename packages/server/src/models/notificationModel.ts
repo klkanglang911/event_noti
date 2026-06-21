@@ -1,5 +1,5 @@
 import db, { getCurrentTimestamp } from '../db/index.ts';
-import type { Notification } from '@event-noti/shared';
+import { getCalendarReminderDate, type Notification } from '@event-noti/shared';
 import * as settingsService from '../services/settingsService.ts';
 
 interface NotificationRow {
@@ -15,8 +15,12 @@ interface NotificationRow {
   // Joined fields
   event_title?: string;
   event_content?: string | null;
+  event_type?: 'custom' | 'traditional_festival' | 'solar_term' | null;
+  event_calendar_key?: string | null;
   event_target_date?: string;
   event_target_time?: string;
+  event_remind_days?: number;
+  event_message_format?: 'text' | 'markdown';
   event_user_id?: number;
 }
 
@@ -39,9 +43,12 @@ function rowToNotification(row: NotificationRow): Notification {
       id: row.event_id,
       title: row.event_title,
       content: row.event_content || null,
+      eventType: row.event_type || 'custom',
+      calendarKey: row.event_calendar_key || null,
       targetDate: row.event_target_date || '',
       targetTime: row.event_target_time || '09:00',
-      remindDays: 0,
+      remindDays: row.event_remind_days || 0,
+      messageFormat: row.event_message_format || 'text',
       groupId: null,
       userId: row.event_user_id || 0,
       status: 'active',
@@ -70,7 +77,10 @@ export function findByUserId(
   `;
   let dataQuery = `
     SELECT n.*, e.title as event_title, e.content as event_content,
-           e.target_date as event_target_date, e.user_id as event_user_id
+           e.event_type as event_type, e.calendar_key as event_calendar_key,
+           e.target_date as event_target_date, e.target_time as event_target_time,
+           e.remind_days as event_remind_days, e.message_format as event_message_format,
+           e.user_id as event_user_id
     FROM notifications n
     INNER JOIN events e ON n.event_id = e.id
     WHERE e.user_id = ?
@@ -99,7 +109,10 @@ export function findByUserId(
 export function findPendingByDate(date: string): Notification[] {
   const rows = db.prepare(`
     SELECT n.*, e.title as event_title, e.content as event_content,
-           e.target_date as event_target_date, e.target_time as event_target_time, e.user_id as event_user_id
+           e.event_type as event_type, e.calendar_key as event_calendar_key,
+           e.target_date as event_target_date, e.target_time as event_target_time,
+           e.remind_days as event_remind_days, e.message_format as event_message_format,
+           e.user_id as event_user_id
     FROM notifications n
     INNER JOIN events e ON n.event_id = e.id
     WHERE n.scheduled_date = ? AND n.status = 'pending'
@@ -113,7 +126,10 @@ export function findPendingByDate(date: string): Notification[] {
 export function findPendingByDateTime(date: string, time: string): Notification[] {
   const rows = db.prepare(`
     SELECT n.*, e.title as event_title, e.content as event_content,
-           e.target_date as event_target_date, e.target_time as event_target_time, e.user_id as event_user_id
+           e.event_type as event_type, e.calendar_key as event_calendar_key,
+           e.target_date as event_target_date, e.target_time as event_target_time,
+           e.remind_days as event_remind_days, e.message_format as event_message_format,
+           e.user_id as event_user_id
     FROM notifications n
     INNER JOIN events e ON n.event_id = e.id
     WHERE n.scheduled_date = ? AND n.scheduled_time = ? AND n.status = 'pending'
@@ -127,7 +143,10 @@ export function findPendingByDateTime(date: string, time: string): Notification[
 export function findById(id: number): Notification | null {
   const row = db.prepare(`
     SELECT n.*, e.title as event_title, e.content as event_content,
-           e.target_date as event_target_date, e.user_id as event_user_id
+           e.event_type as event_type, e.calendar_key as event_calendar_key,
+           e.target_date as event_target_date, e.target_time as event_target_time,
+           e.remind_days as event_remind_days, e.message_format as event_message_format,
+           e.user_id as event_user_id
     FROM notifications n
     INNER JOIN events e ON n.event_id = e.id
     WHERE n.id = ?
@@ -212,6 +231,23 @@ export function generateForEvent(eventId: number, targetDate: string, _remindDay
   }
 }
 
+// Generate one reminder for calendar-based events.
+export function generateCalendarReminder(
+  eventId: number,
+  targetDate: string,
+  advanceDays: number,
+  targetTime: string = '09:00'
+): void {
+  const now = getCurrentTimestamp();
+  const todayStr = settingsService.getTodayInTimezone();
+  const scheduledDate = getCalendarReminderDate(targetDate, Math.max(0, advanceDays), todayStr);
+
+  db.prepare(`
+    INSERT INTO notifications (event_id, scheduled_date, scheduled_time, created_at)
+    VALUES (?, ?, ?, ?)
+  `).run(eventId, scheduledDate, targetTime, now);
+}
+
 // Delete notifications for an event
 export function deleteByEventId(eventId: number): void {
   db.prepare('DELETE FROM notifications WHERE event_id = ?').run(eventId);
@@ -262,7 +298,10 @@ export function findFailedForRetry(maxRetries: number = 3): Notification[] {
 
   const rows = db.prepare(`
     SELECT n.*, e.title as event_title, e.content as event_content,
-           e.target_date as event_target_date, e.user_id as event_user_id
+           e.event_type as event_type, e.calendar_key as event_calendar_key,
+           e.target_date as event_target_date, e.target_time as event_target_time,
+           e.remind_days as event_remind_days, e.message_format as event_message_format,
+           e.user_id as event_user_id
     FROM notifications n
     INNER JOIN events e ON n.event_id = e.id
     WHERE n.status = 'failed' AND n.retry_count < ? AND n.scheduled_date = ?

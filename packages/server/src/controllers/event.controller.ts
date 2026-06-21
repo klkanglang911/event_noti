@@ -4,10 +4,14 @@ import * as eventService from '../services/eventService.ts';
 import { ERROR_CODES, DEFAULTS } from '@event-noti/shared';
 
 // Validation schemas
+const eventTypeSchema = z.enum(['custom', 'traditional_festival', 'solar_term']);
+
 const createEventSchema = z.object({
   title: z.string().min(1, '标题不能为空').max(100),
   content: z.string().max(2000).optional(),
-  targetDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式无效'),
+  eventType: eventTypeSchema.default('custom'),
+  calendarKey: z.string().min(1).max(50).optional(),
+  targetDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式无效').optional(),
   targetTime: z.string().regex(/^\d{2}:\d{2}$/, '时间格式无效').default('09:00'),
   remindDays: z.number().int().min(0).max(365).default(DEFAULTS.REMIND_DAYS),
   messageFormat: z.enum(['text', 'markdown']).default('text'),
@@ -17,6 +21,8 @@ const createEventSchema = z.object({
 const updateEventSchema = z.object({
   title: z.string().min(1).max(100).optional(),
   content: z.string().max(2000).optional().nullable(),
+  eventType: eventTypeSchema.optional(),
+  calendarKey: z.string().min(1).max(50).optional().nullable(),
   targetDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   targetTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   remindDays: z.number().int().min(0).max(365).optional(),
@@ -24,6 +30,38 @@ const updateEventSchema = z.object({
   groupId: z.number().int().positive().optional().nullable(),
   status: z.enum(['active', 'expired', 'completed']).optional(),
 });
+
+function handleEventServiceError(error: unknown, res: Response): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  if (error.message === '分组不存在') {
+    res.status(400).json({
+      error: { code: ERROR_CODES.NOT_FOUND, message: error.message },
+      success: false,
+    });
+    return true;
+  }
+
+  if (
+    [
+      '请选择目标日期',
+      '请选择节日或节气',
+      '不支持的节日或节气',
+      '不支持的事件类型',
+      '无法计算节日或节气日期',
+    ].includes(error.message)
+  ) {
+    res.status(400).json({
+      error: { code: ERROR_CODES.INVALID_INPUT, message: error.message },
+      success: false,
+    });
+    return true;
+  }
+
+  return false;
+}
 
 // GET /api/events - List events
 export function listEvents(req: Request, res: Response): void {
@@ -81,11 +119,7 @@ export function createEvent(req: Request, res: Response): void {
     const event = eventService.createEvent(userId, parseResult.data);
     res.status(201).json({ data: event, success: true });
   } catch (error) {
-    if (error instanceof Error && error.message === '分组不存在') {
-      res.status(400).json({
-        error: { code: ERROR_CODES.NOT_FOUND, message: error.message },
-        success: false,
-      });
+    if (handleEventServiceError(error, res)) {
       return;
     }
     throw error;
@@ -131,11 +165,7 @@ export function updateEvent(req: Request, res: Response): void {
 
     res.json({ data: event, success: true });
   } catch (error) {
-    if (error instanceof Error && error.message === '分组不存在') {
-      res.status(400).json({
-        error: { code: ERROR_CODES.NOT_FOUND, message: error.message },
-        success: false,
-      });
+    if (handleEventServiceError(error, res)) {
       return;
     }
     throw error;
