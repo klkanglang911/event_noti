@@ -25,8 +25,8 @@ export interface UpdateUserInput {
 
 // Event types
 export type MessageFormat = 'text' | 'markdown';
-export type EventType = 'custom' | 'traditional_festival' | 'solar_term';
-export type CalendarEventType = Exclude<EventType, 'custom'>;
+export type EventType = 'custom';
+export type CalendarEventType = 'traditional_festival' | 'solar_term';
 export type LunarFestivalSpecial = 'lunar_new_year_eve';
 
 export interface CalendarEventOptionBase {
@@ -73,11 +73,8 @@ export interface Event {
 export interface CreateEventInput {
   title: string;
   content?: string;
-  eventType?: EventType; // defaults to 'custom'
-  calendarKey?: string;
-  targetDate?: string;
+  targetDate: string;
   targetTime?: string; // HH:MM, defaults to 09:00
-  remindDays?: number; // For calendar events, days before target date to notify
   messageFormat?: MessageFormat; // defaults to 'text'
   groupId?: number;
 }
@@ -85,11 +82,8 @@ export interface CreateEventInput {
 export interface UpdateEventInput {
   title?: string;
   content?: string;
-  eventType?: EventType;
-  calendarKey?: string | null;
   targetDate?: string;
   targetTime?: string;
-  remindDays?: number;
   messageFormat?: MessageFormat;
   groupId?: number | null;
   status?: 'active' | 'expired' | 'completed';
@@ -279,4 +273,37 @@ export interface ReminderPreset {
   title: string;
   content: string;
   icon: string;
+}
+
+// Calendar Subscription types (节日/节气集中订阅：每用户一条)
+export interface CalendarSubscription {
+  id: number;
+  userId: number;
+  enabled: boolean;
+  advanceDays: number; // 统一提前天数 N
+  targetTime: string; // HH:MM
+  groupId: number | null;
+  messageFormat: MessageFormat;
+  createdAt: string;
+  updatedAt: string;
+  // Joined fields
+  group?: Group;
+}
+
+export interface UpdateCalendarSubscriptionInput {
+  enabled?: boolean;
+  advanceDays?: number;
+  targetTime?: string; // HH:MM
+  groupId?: number | null;
+  messageFormat?: MessageFormat;
+}
+
+export interface CalendarSubscriptionLog {
+  id: number;
+  subscriptionId: number;
+  calendarKey: string;
+  eventDate: string; // YYYY-MM-DD 该节日/节气日期
+  sentAt: string;
+  status: 'sent' | 'failed';
+  errorMessage: string | null;
 }

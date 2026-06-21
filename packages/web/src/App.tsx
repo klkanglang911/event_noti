@@ -19,6 +19,7 @@ import UserListPage from '@/pages/UserListPage';
 import SettingsPage from '@/pages/SettingsPage';
 import RecurringReminderListPage from '@/pages/RecurringReminderListPage';
 import RecurringReminderFormPage from '@/pages/RecurringReminderFormPage';
+import CalendarSubscriptionPage from '@/pages/CalendarSubscriptionPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -56,6 +57,7 @@ function App() {
               <Route path="/recurring/new" element={<RecurringReminderFormPage />} />
               <Route path="/recurring/:id/edit" element={<RecurringReminderFormPage />} />
               <Route path="/notifications" element={<NotificationHistoryPage />} />
+              <Route path="/calendar-subscription" element={<CalendarSubscriptionPage />} />
 
               {/* Admin routes */}
               <Route

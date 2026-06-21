@@ -278,6 +278,46 @@ function runMigrations(): void {
     db.exec('CREATE INDEX IF NOT EXISTS idx_recurring_reminder_logs_sent_at ON recurring_reminder_logs(sent_at)');
     console.log('✅ Migration: Created recurring_reminder_logs table');
   }
+
+  // Migration 9: Create calendar_subscriptions table (节日/节气集中订阅，每用户一条)
+  const calendarSubscriptionsTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='calendar_subscriptions'").get();
+  if (!calendarSubscriptionsTable) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS calendar_subscriptions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        enabled INTEGER DEFAULT 0,
+        advance_days INTEGER NOT NULL DEFAULT 7,
+        target_time TEXT DEFAULT '09:00',
+        group_id INTEGER REFERENCES groups(id) ON DELETE SET NULL,
+        message_format TEXT DEFAULT 'text' CHECK(message_format IN ('text', 'markdown')),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    db.exec('CREATE INDEX IF NOT EXISTS idx_calendar_subscriptions_user_id ON calendar_subscriptions(user_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_calendar_subscriptions_enabled ON calendar_subscriptions(enabled)');
+    console.log('✅ Migration: Created calendar_subscriptions table');
+  }
+
+  // Migration 10: Create calendar_subscription_logs table (发送日志 + 去重)
+  const calendarSubscriptionLogsTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='calendar_subscription_logs'").get();
+  if (!calendarSubscriptionLogsTable) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS calendar_subscription_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        subscription_id INTEGER NOT NULL REFERENCES calendar_subscriptions(id) ON DELETE CASCADE,
+        calendar_key TEXT NOT NULL,
+        event_date TEXT NOT NULL,
+        sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        status TEXT DEFAULT 'sent' CHECK(status IN ('sent', 'failed')),
+        error_message TEXT
+      )
+    `);
+    db.exec('CREATE INDEX IF NOT EXISTS idx_calendar_subscription_logs_subscription_id ON calendar_subscription_logs(subscription_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_calendar_subscription_logs_dedup ON calendar_subscription_logs(subscription_id, calendar_key, event_date, status)');
+    console.log('✅ Migration: Created calendar_subscription_logs table');
+  }
 }
 
 // Seed default admin user

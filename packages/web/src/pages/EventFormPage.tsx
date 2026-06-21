@@ -1,31 +1,11 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Loader2, Save, Bold, Italic, List, ListOrdered, Quote, Code, Link, Eye, EyeOff, CalendarDays, Landmark, Sun } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, Bold, Italic, List, ListOrdered, Quote, Code, Link, Eye, EyeOff } from 'lucide-react';
 import { useEvent, useCreateEvent, useUpdateEvent } from '@/hooks/useEvents';
 import { useGroups } from '@/hooks/useGroups';
 import { getErrorMessage } from '@/services/api';
 import { usePrompt } from '@/components/PromptProvider';
-import {
-  EVENT_TYPE_LABELS,
-  SOLAR_TERM_OPTIONS,
-  TRADITIONAL_FESTIVAL_OPTIONS,
-  getCalendarEventOption,
-  getCalendarReminderDate,
-  getNextCalendarEventDate,
-  type CalendarEventType,
-  type EventType,
-  type MessageFormat,
-} from '@event-noti/shared';
-
-const EVENT_TYPE_OPTIONS = [
-  { value: 'custom' as const, label: EVENT_TYPE_LABELS.custom, icon: CalendarDays },
-  { value: 'traditional_festival' as const, label: EVENT_TYPE_LABELS.traditional_festival, icon: Landmark },
-  { value: 'solar_term' as const, label: EVENT_TYPE_LABELS.solar_term, icon: Sun },
-];
-
-function formatDate(dateStr: string) {
-  return new Date(`${dateStr}T00:00:00`).toLocaleDateString('zh-CN');
-}
+import { type MessageFormat } from '@event-noti/shared';
 
 export default function EventFormPage() {
   const { id } = useParams();
@@ -39,11 +19,8 @@ export default function EventFormPage() {
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [eventType, setEventType] = useState<EventType>('custom');
-  const [calendarKey, setCalendarKey] = useState('');
   const [targetDate, setTargetDate] = useState('');
   const [targetTime, setTargetTime] = useState('09:00');
-  const [remindDays, setRemindDays] = useState(7);
   const [groupId, setGroupId] = useState<number | ''>('');
   const [messageFormat, setMessageFormat] = useState<MessageFormat>('text');
   const [showPreview, setShowPreview] = useState(false);
@@ -51,77 +28,18 @@ export default function EventFormPage() {
   const prompt = usePrompt();
 
   const today = new Date().toISOString().split('T')[0];
-  const calendarEventType = eventType === 'custom' ? undefined : eventType;
-  const calendarOptions = useMemo(() => {
-    if (eventType === 'traditional_festival') return TRADITIONAL_FESTIVAL_OPTIONS;
-    if (eventType === 'solar_term') return SOLAR_TERM_OPTIONS;
-    return [];
-  }, [eventType]);
-  const selectedCalendarOption =
-    calendarEventType && calendarKey
-      ? getCalendarEventOption(calendarEventType, calendarKey)
-      : undefined;
-  const computedTargetDate = useMemo(() => {
-    if (!calendarEventType || !calendarKey) return '';
-
-    try {
-      return getNextCalendarEventDate(calendarEventType, calendarKey, today);
-    } catch {
-      return '';
-    }
-  }, [calendarEventType, calendarKey, today]);
-  const computedReminderDate = computedTargetDate
-    ? getCalendarReminderDate(computedTargetDate, remindDays, today)
-    : '';
 
   // Populate form when editing
   useEffect(() => {
     if (event) {
       setTitle(event.title);
       setContent(event.content || '');
-      setEventType(event.eventType || 'custom');
-      setCalendarKey(event.calendarKey || '');
       setTargetDate(event.targetDate);
       setTargetTime(event.targetTime || '09:00');
-      setRemindDays(event.remindDays ?? 7);
       setGroupId(event.groupId || '');
       setMessageFormat(event.messageFormat || 'text');
     }
   }, [event]);
-
-  const updateCalendarSelection = (nextEventType: CalendarEventType, nextCalendarKey: string) => {
-    const previousOption =
-      eventType !== 'custom' && calendarKey
-        ? getCalendarEventOption(eventType, calendarKey)
-        : undefined;
-    const nextOption = getCalendarEventOption(nextEventType, nextCalendarKey);
-
-    setEventType(nextEventType);
-    setCalendarKey(nextCalendarKey);
-
-    if (nextOption && (!title.trim() || title === previousOption?.name)) {
-      setTitle(nextOption.name);
-    }
-  };
-
-  const handleEventTypeChange = (nextEventType: EventType) => {
-    if (nextEventType === 'custom') {
-      setEventType('custom');
-      setCalendarKey('');
-      return;
-    }
-
-    const firstOption =
-      nextEventType === 'traditional_festival'
-        ? TRADITIONAL_FESTIVAL_OPTIONS[0]
-        : SOLAR_TERM_OPTIONS[0];
-    updateCalendarSelection(nextEventType, firstOption.key);
-  };
-
-  const handleCalendarKeyChange = (nextCalendarKey: string) => {
-    if (!calendarEventType) return;
-    updateCalendarSelection(calendarEventType, nextCalendarKey);
-  };
 
   // Markdown toolbar helpers
   const insertMarkdown = (before: string, after: string = '') => {
@@ -132,7 +50,6 @@ export default function EventFormPage() {
     const end = textarea.selectionEnd;
     const selectedText = content.substring(start, end);
     const newText = content.substring(0, start) + before + selectedText + after + content.substring(end);
-
     setContent(newText);
 
     // Restore cursor position
@@ -179,29 +96,16 @@ export default function EventFormPage() {
       return;
     }
 
-    if (eventType === 'custom' && !targetDate) {
+    if (!targetDate) {
       await prompt.error('请选择目标日期');
-      return;
-    }
-
-    if (eventType !== 'custom' && !calendarKey) {
-      await prompt.error('请选择节日或节气');
-      return;
-    }
-
-    if (eventType !== 'custom' && !computedTargetDate) {
-      await prompt.error('无法计算节日或节气日期');
       return;
     }
 
     const input = {
       title: title.trim(),
       content: content.trim() || undefined,
-      eventType,
-      calendarKey: eventType === 'custom' ? undefined : calendarKey,
-      targetDate: eventType === 'custom' ? targetDate : computedTargetDate,
+      targetDate,
       targetTime,
-      remindDays: eventType === 'custom' ? undefined : remindDays,
       messageFormat,
       groupId: groupId || undefined,
     };
@@ -242,29 +146,6 @@ export default function EventFormPage() {
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-6">
-        {/* Event Type */}
-        <div>
-          <label className="label">事件类型</label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {EVENT_TYPE_OPTIONS.map(({ value, label, icon: Icon }) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => handleEventTypeChange(value)}
-                className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                  eventType === value
-                    ? 'border-primary-500 bg-primary-50 text-primary-700'
-                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                }`}
-                disabled={isLoading}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Title */}
         <div>
           <label htmlFor="title" className="label">
@@ -378,82 +259,22 @@ export default function EventFormPage() {
           )}
         </div>
 
-        {/* Target Date / Calendar Event */}
-        {eventType === 'custom' ? (
-          <div>
-            <label htmlFor="targetDate" className="label">
-              目标日期 <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="targetDate"
-              type="date"
-              value={targetDate}
-              onChange={(e) => setTargetDate(e.target.value)}
-              className="input"
-              min={isEditing ? undefined : today}
-              disabled={isLoading}
-            />
-            <p className="text-sm text-gray-500 mt-1">事件的截止或目标日期</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-[1fr_160px] gap-4">
-              <div>
-                <label htmlFor="calendarKey" className="label">
-                  {EVENT_TYPE_LABELS[eventType]} <span className="text-red-500">*</span>
-                </label>
-                <select
-                  id="calendarKey"
-                  value={calendarKey}
-                  onChange={(e) => handleCalendarKeyChange(e.target.value)}
-                  className="input"
-                  disabled={isLoading}
-                >
-                  {calendarOptions.map((option) => (
-                    <option key={option.key} value={option.key}>
-                      {option.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="remindDays" className="label">
-                  提前天数
-                </label>
-                <input
-                  id="remindDays"
-                  type="number"
-                  min={0}
-                  max={365}
-                  value={remindDays}
-                  onChange={(e) => setRemindDays(Math.min(365, Math.max(0, Number(e.target.value) || 0)))}
-                  className="input"
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-
-            {computedTargetDate && (
-              <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="text-gray-500">目标日期</p>
-                    <p className="font-medium text-gray-900">
-                      {selectedCalendarOption?.name || '已选事件'} · {formatDate(computedTargetDate)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">提醒日期</p>
-                    <p className="font-medium text-gray-900">
-                      {formatDate(computedReminderDate)} {targetTime}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Target Date */}
+        <div>
+          <label htmlFor="targetDate" className="label">
+            目标日期 <span className="text-red-500">*</span>
+          </label>
+          <input
+            id="targetDate"
+            type="date"
+            value={targetDate}
+            onChange={(e) => setTargetDate(e.target.value)}
+            className="input"
+            min={isEditing ? undefined : today}
+            disabled={isLoading}
+          />
+          <p className="text-sm text-gray-500 mt-1">事件的截止或目标日期。系统将根据剩余天数智能安排通知频率：创建时立即通知，之后根据距离目标日期自动调整（30天以上每30天、7-30天每7天、3-7天每3天、3天内每天）</p>
+        </div>
 
         {/* Target Time */}
         <div>
@@ -468,11 +289,7 @@ export default function EventFormPage() {
             className="input w-32"
             disabled={isLoading}
           />
-          <p className="text-sm text-gray-500 mt-1">
-            {eventType === 'custom'
-              ? '在指定时间发送提醒通知。系统将根据剩余天数智能安排通知频率：创建时立即通知，之后根据距离目标日期的时间自动调整（30天以上每30天、7-30天每7天、3-7天每3天、3天内每天）'
-              : '将在提醒日期的指定时间发送通知'}
-          </p>
+          <p className="text-sm text-gray-500 mt-1">在指定时间发送提醒通知</p>
         </div>
 
         {/* Group */}
@@ -483,7 +300,7 @@ export default function EventFormPage() {
           <select
             id="groupId"
             value={groupId}
-            onChange={(e) => setGroupId(e.target.value ? parseInt(e.target.value) : '')}
+            onChange={(e) => setGroupId(e.target.value ? parseInt(e.target.value, 10) : '')}
             className="input"
             disabled={isLoading}
           >

@@ -7,7 +7,16 @@ import * as webhookService from '../services/webhookService.ts';
 import * as settingsService from '../services/settingsService.ts';
 import * as recurringReminderModel from '../models/recurringReminderModel.ts';
 import * as recurringReminderLogModel from '../models/recurringReminderLogModel.ts';
-import { getNextUpcomingCalendarEvent, isCalendarEventType, type RecurringReminder } from '@event-noti/shared';
+import * as calendarSubscriptionModel from '../models/calendarSubscriptionModel.ts';
+import * as calendarSubscriptionLogModel from '../models/calendarSubscriptionLogModel.ts';
+import {
+  CALENDAR_EVENT_OPTIONS,
+  addDaysToIsoDate,
+  getNextCalendarEventDate,
+  type CalendarEventOption,
+  type CalendarSubscription,
+  type RecurringReminder,
+} from '@event-noti/shared';
 
 // Configuration from environment
 // Check every minute for scheduled notifications
@@ -63,27 +72,13 @@ async function sendNotification(notificationId: number): Promise<boolean> {
   const targetDate = new Date(event.targetDate);
   const daysRemaining = Math.ceil((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-  // 节日/节气事件：在消息末尾附带「下一个节日/节气」预告（取最近 1 个，排除当前）
-  let content = event.content || '';
-  if (isCalendarEventType(event.eventType) && event.calendarKey) {
-    const upcoming = getNextUpcomingCalendarEvent(todayStr, event.calendarKey);
-    if (upcoming) {
-      const nextDate = new Date(upcoming.date + 'T00:00:00');
-      const daysToNext = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      const typeLabel = upcoming.eventType === 'solar_term' ? '节气' : '节日';
-      const dateLabel = `${nextDate.getMonth() + 1}月${nextDate.getDate()}日`;
-      const preview = `📅 下一个${typeLabel}：${upcoming.name}（${dateLabel}，还有 ${daysToNext} 天）`;
-      content = content ? `${content}\n\n${preview}` : preview;
-    }
-  }
-
   // Send notification with message format
   console.log(`[Scheduler] Sending notification ${notificationId} for event "${event.title}" (format: ${event.messageFormat})`);
 
   const result = await webhookService.sendNotification(
     webhookUrl,
     event.title,
-    content,
+    event.content || '',
     daysRemaining,
     event.messageFormat || 'text'
   );
@@ -322,6 +317,106 @@ async function processRecurringReminders(): Promise<void> {
   }
 }
 
+// Send a calendar subscription reminder for one festival/solar-term occurrence
+async function sendCalendarSubscriptionReminder(
+  subscription: CalendarSubscription,
+  option: CalendarEventOption,
+  eventDate: string
+): Promise<boolean> {
+  // Resolve webhook: group webhook → default webhook
+  let webhookUrl: string | null = null;
+
+  if (subscription.groupId) {
+    const group = groupModel.findById(subscription.groupId);
+    if (group?.webhookId) {
+      const webhook = webhookModel.findById(group.webhookId);
+      webhookUrl = webhook?.url || null;
+    }
+  }
+
+  if (!webhookUrl) {
+    const defaultWebhook = webhookModel.findDefault();
+    webhookUrl = defaultWebhook?.url || null;
+  }
+
+  if (!webhookUrl) {
+    console.warn(`[Scheduler] No webhook configured for calendar subscription ${subscription.id}`);
+    calendarSubscriptionLogModel.create(subscription.id, option.key, eventDate, 'failed', '未配置 Webhook');
+    return false;
+  }
+
+  // advanceDays doubles as "days remaining" for the webhook message ("还有 N 天")
+  const result = await webhookService.sendNotification(
+    webhookUrl,
+    `${option.name}提醒`,
+    '',
+    subscription.advanceDays,
+    subscription.messageFormat || 'text'
+  );
+
+  if (result.success) {
+    calendarSubscriptionLogModel.create(subscription.id, option.key, eventDate, 'sent');
+    return true;
+  }
+
+  calendarSubscriptionLogModel.create(subscription.id, option.key, eventDate, 'failed', result.error);
+  return false;
+}
+
+// Process calendar subscriptions: for each enabled subscription, at its target time,
+// send reminders for any festival/solar-term whose (next date - advanceDays) == today.
+async function processCalendarSubscriptions(): Promise<void> {
+  const { date: today, time: currentTime } = settingsService.getCurrentTimeInTimezone();
+  const subscriptions = calendarSubscriptionModel.findEnabled();
+
+  if (subscriptions.length === 0) {
+    return;
+  }
+
+  let sentCount = 0;
+  let skipCount = 0;
+  let failCount = 0;
+
+  for (const subscription of subscriptions) {
+    // Scan runs every minute; only act at the subscription's target minute
+    if (currentTime !== subscription.targetTime) {
+      continue;
+    }
+
+    for (const option of CALENDAR_EVENT_OPTIONS) {
+      try {
+        const upcoming = getNextCalendarEventDate(option.eventType, option.key, today);
+        const reminderDate = addDaysToIsoDate(upcoming, -subscription.advanceDays);
+
+        if (reminderDate !== today) {
+          continue;
+        }
+
+        // Dedup: skip if already sent for this subscription + event occurrence
+        if (calendarSubscriptionLogModel.alreadySent(subscription.id, option.key, upcoming)) {
+          skipCount++;
+          continue;
+        }
+
+        const success = await sendCalendarSubscriptionReminder(subscription, option, upcoming);
+        if (success) {
+          sentCount++;
+        } else {
+          failCount++;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      } catch {
+        // getNextCalendarEventDate may throw if a term can't be computed within 5 years; skip it
+      }
+    }
+  }
+
+  if (sentCount > 0 || failCount > 0) {
+    console.log(`[Scheduler] Calendar subscriptions: ${sentCount} sent, ${failCount} failed, ${skipCount} skipped`);
+  }
+}
+
 // Start the scheduler
 export function startScheduler(): void {
   const timezone = settingsService.getTimezone();
@@ -361,6 +456,7 @@ export function startScheduler(): void {
       try {
         await processScheduledNotifications();
         await processRecurringReminders();
+        await processCalendarSubscriptions();
       } catch (error) {
         console.error(`[Scheduler] Notification job error:`, error);
       }

@@ -1,5 +1,5 @@
 import db, { getCurrentTimestamp } from '../db/index.ts';
-import { getCalendarReminderDate, type Notification } from '@event-noti/shared';
+import { type Notification } from '@event-noti/shared';
 import * as settingsService from '../services/settingsService.ts';
 
 interface NotificationRow {
@@ -229,23 +229,6 @@ export function generateForEvent(eventId: number, targetDate: string, _remindDay
   for (const dateStr of sortedDates) {
     stmt.run(eventId, dateStr, targetTime, now);
   }
-}
-
-// Generate one reminder for calendar-based events.
-export function generateCalendarReminder(
-  eventId: number,
-  targetDate: string,
-  advanceDays: number,
-  targetTime: string = '09:00'
-): void {
-  const now = getCurrentTimestamp();
-  const todayStr = settingsService.getTodayInTimezone();
-  const scheduledDate = getCalendarReminderDate(targetDate, Math.max(0, advanceDays), todayStr);
-
-  db.prepare(`
-    INSERT INTO notifications (event_id, scheduled_date, scheduled_time, created_at)
-    VALUES (?, ?, ?, ?)
-  `).run(eventId, scheduledDate, targetTime, now);
 }
 
 // Delete notifications for an event

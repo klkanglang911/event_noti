@@ -7,6 +7,7 @@ import webhookRoutes from './webhook.routes.ts';
 import notificationRoutes from './notification.routes.ts';
 import settingsRoutes from './settings.ts';
 import recurringReminderRoutes from './recurringReminder.routes.ts';
+import calendarSubscriptionRoutes from './calendarSubscription.routes.ts';
 
 const router = Router();
 
@@ -43,6 +44,9 @@ router.use('/notifications', notificationRoutes);
 
 // Recurring reminder routes
 router.use('/recurring-reminders', recurringReminderRoutes);
+
+// Calendar subscription routes (节日/节气集中订阅)
+router.use('/calendar-subscription', calendarSubscriptionRoutes);
 
 // Settings routes
 router.use('/settings', settingsRoutes);
